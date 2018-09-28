@@ -1,0 +1,7 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=unknowwm
+Comment=Unknow WM - a small window manager
+Exec=~/unknowwm/wm
+Type=XSession
+Name[ru_RU.utf8]=unknowwm
