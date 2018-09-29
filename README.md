@@ -87,7 +87,7 @@ Stack right mode
 
 Stack lefr mode
 
-![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sj.png)
+![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sl.png)
 
 Grid mode
 
