@@ -85,7 +85,7 @@ Stack right mode
 
 ![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sr.png)
 
-Stack lefr mode
+Stack left mode
 
 ![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sl.png)
 
