@@ -3,9 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <vector>
 #include <stdarg.h>
-#include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <X11/Xutil.h>
@@ -13,9 +11,9 @@
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xinerama.h>
-
-
 #include <X11/Xft/Xft.h>
+
+#include "monitor.h"
 
 enum { RESIZE, MOVE };
 //Modes
@@ -24,109 +22,6 @@ enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
 enum { TITLE_UP, TITLE_DOWN, TITLE_LEFT, TITLE_RIGHT };
 
-
-//Font
-struct FontStruct {
-	int ascent;
-	int descent;
-	int height;
-	XFontSet set;
-	XFontStruct *xfont;
-	XftFont *xft_font;
-};
-
-struct DC {
-	int x, y, w, h;
-	int text_offset_y;
-	int color_border_pixels;
-	int border_width;
-	XSetWindowAttributes wa;
-	Display *dpy;
-	GC gc;
-	Pixmap canvas;
-	Pixmap empty;
-	XftDraw *xftdraw;
-	FontStruct font;
-};
-
-struct Client {
-	Client *next = nullptr;
-	bool isUrgn, isFull, isFloat, isTrans=false;
-	Window win;
-	Window decorate;
-	bool isDecorated = false;
-	int id = -1;
-	std::string title = "";
-	bool isUnmap = false;
-
-	int hideX = 0;
-	int hideY = 0;
-	bool isHide = false;
-
-	bool isIgnore = false;
-
-	~Client() {
-		delete next;
-	}
-};
-
-struct Desktop {
-	int mode, masterSize=0, firstStackSize=0, nm=0;
-	int layoutId = 0;
-	bool isHide = false;
-	//Clients *head, *cur, *prev;
-
-	std::vector<Client*> clients;
-	int curClientId = -1;
-	int prevClientId = -1;
-	
-	bool isBar;
-
-	~Desktop() {
-		for (auto it = clients.begin() ; it != clients.end(); ++it) {
-			delete (*it);
-		}
-		clients.clear();
-	}
-
-	Client *GetCur() {
-		if (clients.size() == 0 || curClientId < 0 || curClientId >= clients.size()) {
-			return nullptr;
-		}
-		return clients[curClientId];
-	}
-
-	Client *GetHead() {
-		if (clients.size() == 0) {
-			return nullptr;
-		}
-		return clients[0];
-	}
-
-	Client *GetPrev() {
-		if (clients.size() == 0 || prevClientId < 0 || prevClientId >= clients.size()) {
-			return nullptr;
-		}
-		return clients[prevClientId];
-	}
-};
-
-struct Monitor {
-	int desktopsCount = 0;
-	Monitor(int desktopsCount): desktopsCount(desktopsCount) {
-		printf("DEBUGGGG %i", desktopsCount);
-		desktops.resize(desktopsCount);
-	}
-	int x, y, h, w, desktopCurId = 0, desktopPrevId = 0;
-	std::vector<Desktop*> desktops;
-
-	~Monitor() {
-		for (auto it = desktops.begin() ; it != desktops.end(); ++it) {
-			delete (*it);
-		}
-		desktops.clear();
-	}
-};
 
 struct Argument {
 	std::vector<char*> com;

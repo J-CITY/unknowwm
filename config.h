@@ -5,6 +5,7 @@
 #include "utils.h"
 #include <memory>
 #include <algorithm>
+#include "toml.h"
 
 class WindowManager;
 
@@ -83,12 +84,9 @@ public:
 		keys.push_back(Key(MOD4,       key, "ChangeMonitor",  Argument(mon)));
 		keys.push_back(Key(MOD4|SHIFT, key, "ClientToMonitor",Argument(mon)));
 	}
-	
-	std::vector<std::string> ignoreApps;
 
-	Config() {
-		//Ignore apps
-		ignoreApps.push_back("UnknownDock");
+	Config(std::string configPath="") {
+		Parse(configPath);
 
 
 		//Autostart
@@ -189,8 +187,107 @@ public:
 
 
 	void Parse(std::string path) {
+		if (path == "") {
+			return;
+		}
+		auto config = cpptoml::parse_file(path);
+
+		this->PANEL_HEIGHT_HORIZONTAL_UP    = config->get_qualified_as<int>("main.PANEL_HEIGHT_HORIZONTAL_UP").value_or(22);
+		this->PANEL_HEIGHT_HORIZONTAL_DOWN  = config->get_qualified_as<int>("main.PANEL_HEIGHT_HORIZONTAL_DOWN").value_or(0);
+		this->PANEL_HEIGHT_VERTICAL_LEFT    = config->get_qualified_as<int>("main.PANEL_HEIGHT_VERTICAL_LEFT").value_or(0);
+		this->PANEL_HEIGHT_VERTICAL_RIGHT   = config->get_qualified_as<int>("main.PANEL_HEIGHT_VERTICAL_RIGHT").value_or(0);
+		this->USELESSGAP                    = config->get_qualified_as<int>("main.USELESSGAP").value_or(10);
+		
+		auto titleKey = config->get_qualified_as<std::string>("main.TITLE_POSITION").value_or("TITLE_LEFT");
+		std::map <std::string, int> titlePos = {
+			{ "TITLE_LEFT", TITLE_LEFT },
+			{ "TITLE_RIGHT", TITLE_RIGHT },
+			{ "TITLE_UP", TITLE_UP },
+			{ "TITLE_DOWN", TITLE_DOWN }
+		};
+		
+		this->TITLE_POSITION               = titlePos[titleKey];// TITLE_LEFT TITLE_RIGHT TITLE_UP TITLE_DOWN
+		this->TITLE_HEIGHT                 = config->get_qualified_as<int>("main.TITLE_HEIGHT").value_or(20);
+		this->SHOW_TITLE                   = config->get_qualified_as<bool>("main.SHOW_TITLE").value_or(true);
+		//bool TITLE_IN_BEGIN = true;
+
+		this->SHOW_DECORATE                = config->get_qualified_as<bool>("main.SHOW_DECORATE").value_or(true);
+		this->DECORATE_BORDER_WIDTH        = config->get_qualified_as<int>("main.DECORATE_BORDER_WIDTH").value_or(3);
+
+		this->DESKTOPS                     = config->get_qualified_as<int>("main.DESKTOPS").value_or(4);
+		this->BORDER_WIDTH                 = config->get_qualified_as<int>("main.BORDER_WIDTH").value_or(3);
+
+		this->MASTER_SIZE                  = config->get_qualified_as<double>("main.MASTER_SIZE").value_or(0.52);
+		this->SHOW_PANEL                   = config->get_qualified_as<bool>("main.SHOW_PANEL").value_or(true);
+		
+		std::map <std::string, int> defMode = {
+			{ "V_STACK_LEFT", V_STACK_LEFT },
+			{ "V_STACK_RIGHT", V_STACK_RIGHT },
+			{ "H_STACK_UP", H_STACK_UP },
+			{ "H_STACK_DOWN", H_STACK_DOWN },
+			{ "MONOCLE", MONOCLE },
+			{ "GRID", GRID },
+			{ "FLOAT", FLOAT },
+			{ "FIBONACCI", FIBONACCI },
+			{ "MODES",MODES }
+		};
+		auto defModeKey = config->get_qualified_as<std::string>("main.DEFAULT_MODE").value_or("V_STACK_LEFT");
+		this->DEFAULT_MODE          = defMode[defModeKey];//Default layout for desktop
+
+		this->ATTACH_ASIDE          = config->get_qualified_as<bool>("main.ATTACH_ASIDE").value_or(true);
+		this->FOLLOW_WINDOW         = config->get_qualified_as<bool>("main.FOLLOW_WINDOW").value_or(false);
+		this->FOLLOW_MONITOR        = config->get_qualified_as<bool>("main.FOLLOW_MONITOR").value_or(false);
+		this->FOLLOW_MOUSE          = config->get_qualified_as<bool>("main.FOLLOW_MOUSE").value_or(false);
+		this->CLICK_TO_FOCUS        = config->get_qualified_as<bool>("main.CLICK_TO_FOCUS").value_or(true);
+		this->FOCUS_BUTTON          = Button3;// mouse button to be used along with CLICK_TO_FOCUS
+		
+		this->FOCUS_COLOR           = config->get_qualified_as<std::string>("main.FOCUS_COLOR").value_or("#4A724E");
+		this->UNFOCUS_COLOR         = config->get_qualified_as<std::string>("main.UNFOCUS_COLOR").value_or("#3B6B71");
+		this->INFOCUS_COLOR         = config->get_qualified_as<std::string>("main.INFOCUS_COLOR").value_or("#654D47");
+		this->DECORATE_FOCUS_COLOR  = config->get_qualified_as<std::string>("main.DECORATE_FOCUS_COLOR").value_or("#3B6B71");
+		this->DECORATE_UNFOCUS_COLOR= config->get_qualified_as<std::string>("main.DECORATE_UNFOCUS_COLOR").value_or("#213846");
+		this->DECORATE_INFOCUS_COLOR= config->get_qualified_as<std::string>("main.DECORATE_INFOCUS_COLOR").value_or("#213846");
+		this->TITLE_TEXT_COLOR      = config->get_qualified_as<std::string>("main.TITLE_TEXT_COLOR").value_or("#ffffff");//"#303030";
+
+		this->TITLE_DX              = config->get_qualified_as<int>("main.TITLE_DX").value_or(5);
+		this->TITLE_DY              = config->get_qualified_as<int>("main.TITLE_DY").value_or(14);
+		this->FONT                  = config->get_qualified_as<std::string>("main.FONT").value_or("Verdana:size=11");
+
+		this->MINWSZ                = config->get_qualified_as<int>("main.MINWSZ").value_or(50);//minimum window size
+		this->DEFAULT_MONITOR       = config->get_qualified_as<int>("main.DEFAULT_MONITOR").value_or(0);
+		this->DEFAULT_DESKTOP       = config->get_qualified_as<int>("main.DEFAULT_DESKTOP").value_or(0);
+	
+		this->AUTOFLOATING          = config->get_qualified_as<bool>("main.AUTOFLOATING").value_or(false);
+		this->NMASTER               = config->get_qualified_as<int>("main.NMASTER").value_or(1);
+		
 
 	}
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif

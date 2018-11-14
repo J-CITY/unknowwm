@@ -235,14 +235,14 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 				DefaultVisual(display, screen), DefaultColormap(display, screen));
 			
 			if (config->TITLE_POSITION == TITLE_UP) {
-				XftDrawString8 (draw, &msgcolor, msgfont, config->TITLE_DX, config->TITLE_DY, 
+				XftDrawString8(draw, &msgcolor, msgfont, config->TITLE_DX, config->TITLE_DY, 
 					(XftChar8*)(*_c)->title.c_str(), 
 					(*_c)->title.size());
 			}
 			if (config->TITLE_POSITION == TITLE_DOWN) {
 				XWindowAttributes wa;
 				if (XGetWindowAttributes(display, win, &wa)) {
-					XftDrawString8 (draw, &msgcolor, msgfont, 
+					XftDrawString8(draw, &msgcolor, msgfont, 
 						config->TITLE_DX, 
 						wa.height-config->TITLE_DY, 
 						(XftChar8*)(*_c)->title.c_str(), 
@@ -255,7 +255,7 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 				if (XGetWindowAttributes(display, win, &wa)) {
 					for (auto i = 0; i < (*_c)->title.size(); ++i) {
 						std::string s(1, (*_c)->title[i]);
-						XftDrawString8 (draw, &msgcolor, msgfont, 
+						XftDrawString8(draw, &msgcolor, msgfont, 
 							config->TITLE_DX, 
 							config->TITLE_DY + i*msgfont->height, 
 							(XftChar8*)s.c_str(), 1);
@@ -268,7 +268,7 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 				if (XGetWindowAttributes(display, win, &wa)) {
 					for (auto i = 0; i < (*_c)->title.size(); ++i) {
 						std::string s(1, (*_c)->title[i]);
-						XftDrawString8 (draw, &msgcolor, msgfont, 
+						XftDrawString8(draw, &msgcolor, msgfont, 
 							wa.width-config->TITLE_DX, 
 							config->TITLE_DY + i*msgfont->height, 
 							(XftChar8*)s.c_str(), 1);
@@ -470,7 +470,7 @@ void WindowManager::clientMessage(XEvent *e) {
 		(unsigned)e->xclient.data.l[1] == netatoms[NET_FULLSCREEN] ||
 		(unsigned)e->xclient.data.l[2] == netatoms[NET_FULLSCREEN])) {
 		FullscreenMode(c, d, m, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isFull)));
-		if (!(c->isFloat || c->isTrans) || !d->GetHead()->next) {
+		if (!(c->isFloat || c->isTrans) || !d->clients.size() > 1) {
 			Tile(d, m);
 		}
 	} else if (e->xclient.message_type == netatoms[NET_ACTIVE]) {
@@ -681,91 +681,7 @@ void WindowManager::keyPress(XEvent *e) {
 
 void WindowManager::RunFunc(std::string type, std::string funcStr, const Argument *arg) {
 	if (type == "keys") {
-		if (funcStr == "TogglePanel") {
-			TogglePanel();
-		}
-		
-		if (funcStr == "SwapMaster") {
-			SwapMaster();
-		}
-
-		if (funcStr == "Quit") {
-			Quit(arg);
-		}
-		if (funcStr == "RunCmd") {
-			RunCmd(arg);
-		}
-		if (funcStr == "KillClient") {
-			KillClient();
-		}
-		if (funcStr == "NextWin") {
-			NextWin();
-		}
-		if (funcStr == "PrevWin") {
-			PrevWin();
-		}
-		if (funcStr == "MoveResize") {
-			MoveResize(arg);
-		}
-		if (funcStr == "SwitchMode") {
-			SwitchMode(arg);
-		}
-		if (funcStr == "ResizeMaster") {
-			ResizeMaster(arg);
-		}
-		if (funcStr == "ResizeStack") {
-			ResizeStack(arg);
-		}
-		if (funcStr == "MoveDown") {
-			MoveDown();
-		}
-		if (funcStr == "MoveUp") {
-			MoveUp();
-		}
-		if (funcStr == "NextDesktop") {
-			NextDesktop(arg);
-		}
-		if (funcStr == "NextFilledDesktop") {
-			NextFilledDesktop(arg);
-		}
-		if (funcStr == "PrevDesktop") {
-			PrevDesktop();
-		}
-		if (funcStr == "ClientToDesktop") {
-			ClientToDesktop(arg);
-		}
-
-		if (funcStr == "ToggleFloatClient") {
-			ToggleFloatClient();
-		}
-		if (funcStr == "ToggleFullscreenClient") {
-			ToggleFullscreenClient();
-		}
-
-		if (funcStr == "ChangeDecorateBorder") {
-			ChangeDecorateBorder(arg);
-		}
-		if (funcStr == "ChangeBorder") {
-			ChangeBorder(arg);
-		}
-		if (funcStr == "ChangeGap") {
-			ChangeGap(arg);
-		}
-		if (funcStr == "AddMaster") {
-			AddMaster(arg);
-		}
-		if (funcStr == "HideCurClient") {
-			HideCurClient();
-		}
-		if (funcStr == "HideAllClientOnDescktop") {
-			HideAllClientOnDescktop();
-		}
-		if (funcStr == "ChangeDesktop") {
-			ChangeDesktop(arg);
-		}
-		if (funcStr == "ChangeLayout") {
-			ChangeLayout(arg);
-		}
+		(*this.*runFuncMap[funcStr])(arg);
 	}
 	if (type =="button") {
 		if (funcStr == "MouseMotion") {
@@ -774,7 +690,7 @@ void WindowManager::RunFunc(std::string type, std::string funcStr, const Argumen
 	}
 }
 
-void WindowManager::KillClient(void) {
+void WindowManager::KillClient(const Argument *arg) {
 	Monitor *m = monitors[monitorId];
 	Desktop *d = m->desktops[m->desktopCurId];
 	if (!d->GetCur()) {
@@ -890,7 +806,7 @@ void WindowManager::MonocleMode(int x, int y, int w, int h, Desktop *d) {
 	}
 }
 
-void WindowManager::PrevDesktop(void) {
+void WindowManager::PrevDesktop(const Argument *_arg) {
 	Argument arg;
 	arg.i = monitors[monitorId]->desktopPrevId;
 	ChangeDesktop(&arg);
@@ -1083,7 +999,7 @@ void WindowManager::MouseMotion(const Argument *Argument) {
 	XUngrabPointer(display, CurrentTime);
 }
 
-void WindowManager::MoveDown() {
+void WindowManager::MoveDown(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (!d->GetCur() || d->clients.size() <= 1) {
 		return;
@@ -1107,7 +1023,7 @@ void WindowManager::MoveDown() {
 	}
 }
 
-void WindowManager::MoveUp(void) {
+void WindowManager::MoveUp(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (!d->GetCur() || d->clients.size() <= 1) {
 		return;
@@ -1131,7 +1047,7 @@ void WindowManager::MoveUp(void) {
 	}
 }
 
-void WindowManager::ToggleFloatClient() {
+void WindowManager::ToggleFloatClient(const Argument *arg) {
 	Monitor *m = monitors[monitorId];
 	Desktop *d = m->desktops[m->desktopCurId];
 	XWindowAttributes wa;
@@ -1165,7 +1081,7 @@ void WindowManager::FloatMode(int x, int y, int w, int h, Desktop *d) {
 	}
 }
 
-void WindowManager::ToggleFullscreenClient() {
+void WindowManager::ToggleFullscreenClient(const Argument *arg) {
 	Monitor *m = monitors[monitorId];
 	Desktop *d = m->desktops[m->desktopCurId];
 	if (!d->GetCur()) {
@@ -1201,7 +1117,7 @@ void WindowManager::MoveResize(const Argument *Argument) {
 	}
 }
 
-void WindowManager::NextWin() {
+void WindowManager::NextWin(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (d->GetCur() && d->clients.size() > 1) {
 		auto c = (d->GetCur()->id + 1 < d->clients.size()) ? d->clients[d->GetCur()->id + 1] : d->clients[0];
@@ -1251,7 +1167,6 @@ void WindowManager::Sigchld(int sig) {
 		//exit(-1);
 	}
 }
-
 
 void WindowManager::Init() {
 
@@ -1364,7 +1279,7 @@ void WindowManager::RunCmd(const Argument *arg) {
 	execvp(arg->com[0], a);
 }
 
-void WindowManager::SwapMaster() {
+void WindowManager::SwapMaster(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (!d->GetCur() || d->clients.size() <= 1) {
 		return;
@@ -1417,7 +1332,7 @@ void WindowManager::Tile(Desktop *d, Monitor *m) {
 		                                                       m->h - (d->isBar ? (config->PANEL_HEIGHT_HORIZONTAL_UP+config->PANEL_HEIGHT_HORIZONTAL_DOWN) : 0), d);
 }
 
-void WindowManager::TogglePanel() {
+void WindowManager::TogglePanel(const Argument *arg) {
 	Monitor *m = monitors[monitorId];
 	m->desktops[m->desktopCurId]->isBar = !m->desktops[m->desktopCurId]->isBar;
 	Tile(m->desktops[m->desktopCurId], m);
@@ -1458,7 +1373,7 @@ WindowManager::~WindowManager() {
 	XCloseDisplay(display);
 }
 
-void WindowManager::PrevWin() {
+void WindowManager::PrevWin(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (d->GetCur() && d->clients.size() > 1) {
 		auto c = (d->GetCur()->id - 1 >= 0) ? d->clients[d->GetCur()->id - 1] : 

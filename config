@@ -1,0 +1,43 @@
+[main]
+	PANEL_HEIGHT_HORIZONTAL_UP    = 22
+	PANEL_HEIGHT_HORIZONTAL_DOWN  = 0
+	PANEL_HEIGHT_VERTICAL_LEFT    = 0
+	PANEL_HEIGHT_VERTICAL_RIGHT   = 0
+	USELESSGAP                    = 10
+
+	TITLE_POSITION                = "TITLE_UP" # TITLE_LEFT TITLE_RIGHT TITLE_UP TITLE_DOWN
+	TITLE_HEIGHT                  = 20
+	SHOW_TITLE                    = true
+	#bool TITLE_IN_BEGIN = true;
+
+	SHOW_DECORATE                 = true
+	DECORATE_BORDER_WIDTH         = 3
+	DESKTOPS                      = 4
+	BORDER_WIDTH                  = 3
+
+	MASTER_SIZE           = 0.52
+	SHOW_PANEL            = true           #Show bar panel
+	DEFAULT_MODE          = "V_STACK_LEFT" #Default layout for desktop V_STACK_RIGHT, H_STACK_UP, H_STACK_DOWN, MONOCLE, GRID, FLOAT, FIBONACCI, MODES
+	ATTACH_ASIDE          = true           #False means new window is master
+	FOLLOW_WINDOW         = false          #follow the window when moved to a different desktop
+	FOLLOW_MONITOR        = false          #follow the window when moved to a different monitor
+	FOLLOW_MOUSE          = false          #focus the window the mouse just entered
+	CLICK_TO_FOCUS        = true           #focus an unfocused window when clicked
+	FOCUS_BUTTON          = "LEFT"         #LEFT/RIGHT/MIDDLEmouse button to be used along with CLICK_TO_FOCUS
+	FOCUS_COLOR           = "#4A724E"
+	UNFOCUS_COLOR         = "#3B6B71"
+	INFOCUS_COLOR         = "#654D47"
+	DECORATE_FOCUS_COLOR  = "#3B6B71"
+	DECORATE_UNFOCUS_COLOR= "#213846"
+	DECORATE_INFOCUS_COLOR= "#213846"
+	TITLE_TEXT_COLOR      = "#ffffff"
+
+	TITLE_DX              = 5
+	TITLE_DY              = 14
+	FONT                  = "Verdana:size=11"
+
+	MINWSZ                        = 50 #minimum window size
+	DEFAULT_MONITOR               = 0
+	DEFAULT_DESKTOP               = 0
+	AUTOFLOATING                  = false
+	NMASTER                       = 1

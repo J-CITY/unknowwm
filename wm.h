@@ -12,6 +12,7 @@ class WindowManager {
 public:
 	typedef void (WindowManager::*ScriptFunction)(XEvent *e);
 	typedef void (WindowManager::*ModeFunction)(int x, int y, int w, int h, Desktop *d);
+	typedef void (WindowManager::*ActionFunction)(const Argument *arg);
 
 	Config *config;
 
@@ -36,8 +37,6 @@ private:
 	unsigned long GetColor(std::string _color, const int screen);
 	void GrabButtons(Client *c);
 	void GrabKeys();
-	void KillClient(void);
-	void PrevDesktop(void);
 	void RemoveClient(Client *c, Desktop *d, Monitor *m);
 	bool WinToClient(Window w, Client **c, Desktop **d, Monitor **m);
 	void GridMode(int x, int y, int w, int h, Desktop *d);
@@ -46,16 +45,8 @@ private:
 	void FloatMode(int x, int y, int w, int h, Desktop *d);
 	void StackMode(int x, int y, int w, int h, Desktop *d);
 	void FibonacciMode(int x, int y, int w, int h, Desktop *d);
-	void MoveDown();
-	void MoveUp();
 	static void Sigchld(int sig);
-	void SwapMaster();
 	void Tile(Desktop *d, Monitor *m);
-	void TogglePanel();
-	void NextWin();
-	void PrevWin();
-	void ToggleFloatClient();
-	void ToggleFullscreenClient();
 
 	void buttonPress(XEvent *e);
 	void configureRequest(XEvent *e);
@@ -69,6 +60,15 @@ private:
 	void unmapNotify(XEvent *e);
 
 	void RunFunc(std::string type, std::string funcStr, const Argument *arg);
+	void ToggleFullscreenClient(const Argument *arg);
+	void ToggleFloatClient(const Argument *arg);
+	void MoveDown(const Argument *arg);
+	void MoveUp(const Argument *arg);
+	void NextWin(const Argument *arg);
+	void PrevWin(const Argument *arg);
+	void KillClient(const Argument *arg);
+	void SwapMaster(const Argument *arg);
+	void TogglePanel(const Argument *arg);
 	void ChangeDesktop(const Argument *Argument);
 	void ChangeMonitor(const Argument *Argument);
 	void ClientToDesktop(const Argument *Argument);
@@ -80,6 +80,7 @@ private:
 	void ResizeMaster(const Argument *Argument);
 	void ResizeStack(const Argument *Argument);
 	void NextDesktop(const Argument *Argument);
+	void PrevDesktop(const Argument *arg);
 	void NextFilledDesktop(const Argument *Argument);
 	void SwitchMode(const Argument *arg);
 
@@ -136,7 +137,7 @@ private:
 		}
 	}
 
-	void HideCurClient() {
+	void HideCurClient(const Argument *arg) {
 		Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 		Client *c = d->GetCur();
 		if (c == nullptr) {
@@ -145,7 +146,7 @@ private:
 		HideClient(c, monitors[monitorId]);
 	}
 
-	void HideAllClientOnDescktop() {
+	void HideAllClientOnDescktop(const Argument *arg) {
 		Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 		bool hide = true;
 		for (auto _c = d->clients.begin(); _c != d->clients.end(); _c++) {
@@ -249,6 +250,67 @@ private:
 		{FIBONACCI,    &WindowManager::FibonacciMode},
 		{FLOAT,        &WindowManager::FloatMode}
 	};
+
+	const std::string ACTION_TOGGLE_PANEL = "TogglePanel";
+	const std::string ACTION_SWAP_MASTER = "SwapMaster";
+	const std::string ACTION_QUIT = "Quit";
+	const std::string ACTION_RUN_CMD = "RunCmd";
+	const std::string ACTION_KILL_CILENT = "KillClient";
+	const std::string ACTION_NEXT_WIN = "NextWin";
+	const std::string ACTION_PREW_WIN = "PrevWin";
+	const std::string ACTION_MOVE_RESIZE = "MoveResize";
+	const std::string ACTION_SWITCH_MODE = "SwitchMode";
+	const std::string ACTION_RESIZE_MASTER = "ResizeMaster";
+	const std::string ACTION_RESIZE_STACK = "ResizeStack";
+	const std::string ACTION_MOVE_DOWN = "MoveDown";
+	const std::string ACTION_MOVE_UP = "MoveUp";
+	const std::string ACTION_NEXT_DESKTOP = "NextDesktop";
+	const std::string ACTION_NEXT_FILLED_DESKTOP = "NextFilledDesktop";
+	const std::string ACTION_PREV_DESKTOP = "PrevDesktop";
+	const std::string ACTION_CLIENT_TO_DESKTOP = "ClientToDesktop";
+	const std::string ACTION_TOGGLE_FLOAT_CLIENT = "ToggleFloatClient";
+	const std::string ACTION_TOGGLE_FULLSCREEN_CLIENT = "ToggleFullscreenClient";
+	const std::string ACTION_CHANGE_DECORATE_BORDER = "ChangeDecorateBorder";
+	const std::string ACTION_CHANGE_BORDER = "ChangeBorder";
+	const std::string ACTION_CHANGE_GAP = "ChangeGap";
+	const std::string ACTION_ADD_MASTER = "AddMaster";
+	const std::string ACTION_HIDE_CUR_CLIENT = "HideCurClient";
+	const std::string ACTION_HIDE_ALL_CLIENT_ON_DESKTOP = "HideAllClientOnDescktop";
+	const std::string ACTION_CHANGE_DESKTOP = "ChangeDesktop";
+	const std::string ACTION_CHANGE_LAYOUT = "ChangeLayout";
+	
+	std::map<std::string, ActionFunction> runFuncMap = {
+		{ACTION_TOGGLE_PANEL, &WindowManager::TogglePanel},
+		{ACTION_SWAP_MASTER, &WindowManager::SwapMaster},
+		{ACTION_QUIT, &WindowManager::Quit},
+		{ACTION_RUN_CMD, &WindowManager::RunCmd},
+		{ACTION_KILL_CILENT, &WindowManager::KillClient},
+		{ACTION_NEXT_WIN, &WindowManager::NextWin},
+		{ACTION_PREW_WIN, &WindowManager::PrevWin},
+		{ACTION_MOVE_RESIZE, &WindowManager::MoveResize},
+		{ACTION_SWITCH_MODE, &WindowManager::SwitchMode},
+		{ACTION_RESIZE_MASTER, &WindowManager::ResizeMaster},
+		{ACTION_RESIZE_STACK, &WindowManager::ResizeStack},
+		{ACTION_MOVE_DOWN, &WindowManager::MoveDown},
+		{ACTION_MOVE_UP, &WindowManager::MoveUp},
+		{ACTION_NEXT_DESKTOP, &WindowManager::NextDesktop},
+		{ACTION_NEXT_FILLED_DESKTOP, &WindowManager::NextFilledDesktop},
+		{ACTION_PREV_DESKTOP, &WindowManager::PrevDesktop},
+		{ACTION_CLIENT_TO_DESKTOP, &WindowManager::ClientToDesktop},
+		{ACTION_TOGGLE_FLOAT_CLIENT, &WindowManager::ToggleFloatClient},
+		{ACTION_TOGGLE_FULLSCREEN_CLIENT, &WindowManager::ToggleFullscreenClient},
+		{ACTION_CHANGE_DECORATE_BORDER, &WindowManager::ChangeDecorateBorder},
+		{ACTION_CHANGE_BORDER, &WindowManager::ChangeBorder},
+		{ACTION_CHANGE_GAP, &WindowManager::ChangeGap},
+		{ACTION_ADD_MASTER, &WindowManager::AddMaster},
+		{ACTION_HIDE_CUR_CLIENT, &WindowManager::HideCurClient},
+		{ACTION_HIDE_ALL_CLIENT_ON_DESKTOP, &WindowManager::HideAllClientOnDescktop},
+		{ACTION_CHANGE_DESKTOP, &WindowManager::ChangeDesktop},
+		{ACTION_CHANGE_LAYOUT, &WindowManager::ChangeLayout},
+	};
+
+
+
 };
 
 #endif

@@ -11,7 +11,7 @@ XINERAMALIB = -lXinerama
 INCS = -I. -I/usr/include ${X11INC}
 LIBS = -L/usr/lib -lc ${X11LIB} ${XINERAMALIB}
 
-CFLAGS   = -std=c++11 -pedantic -Wall -Wextra ${INCS}"
+CFLAGS   = -std=c++14 -pedantic -Wall -Wextra ${INCS}"
 LDFLAGS  = ${LIBS}
 
 GCC 	 = g++
@@ -31,7 +31,7 @@ debug: options ${WMNAME}
 	@echo GCC $<
 	@${GCC} -c ${CFLAGS} $<
 
-${OBJ}: config.h logger.h wm.h
+${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h
 
 
 ${WMNAME}: ${OBJ}
