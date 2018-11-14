@@ -14,12 +14,40 @@
 #include <X11/Xatom.h>
 #include <X11/extensions/Xinerama.h>
 
+
+#include <X11/Xft/Xft.h>
+
 enum { RESIZE, MOVE };
 //Modes
 enum { V_STACK_LEFT, V_STACK_RIGHT, H_STACK_UP, H_STACK_DOWN, MONOCLE, GRID, FLOAT, FIBONACCI, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
 enum { TITLE_UP, TITLE_DOWN, TITLE_LEFT, TITLE_RIGHT };
+
+
+//Font
+struct FontStruct {
+	int ascent;
+	int descent;
+	int height;
+	XFontSet set;
+	XFontStruct *xfont;
+	XftFont *xft_font;
+};
+
+struct DC {
+	int x, y, w, h;
+	int text_offset_y;
+	int color_border_pixels;
+	int border_width;
+	XSetWindowAttributes wa;
+	Display *dpy;
+	GC gc;
+	Pixmap canvas;
+	Pixmap empty;
+	XftDraw *xftdraw;
+	FontStruct font;
+};
 
 struct Client {
 	Client *next = nullptr;
@@ -34,6 +62,8 @@ struct Client {
 	int hideX = 0;
 	int hideY = 0;
 	bool isHide = false;
+
+	bool isIgnore = false;
 
 	~Client() {
 		delete next;

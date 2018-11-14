@@ -5,6 +5,7 @@ UNKNOWN WM
 #include "wm.h"
 #include <unistd.h>
 #include "logger.h"
+#include <algorithm>
 
 std::unique_ptr<WindowManager> WindowManager::Create() {
 	Display* display = XOpenDisplay(nullptr);
@@ -18,7 +19,25 @@ std::unique_ptr<WindowManager> WindowManager::Create() {
 WindowManager::WindowManager(Display* display): display(display) {}
 
 Client* WindowManager::AddWindow(Window w, Desktop *d) {
+	/*std::string title = "";
+	XTextProperty name;
+	XGetTextProperty(display, w, &name, XA_WM_NAME);
+	if (name.nitems && name.encoding == XA_STRING) {
+		title = (char*)name.value;
+	}
+	if (name.value) {
+		XFree(name.value);
+	}
+	
+	auto it = std::find(config->ignoreApps.begin(), config->ignoreApps.end(), title);
+	bool isIgnoreWin = false;
+	if (it != config->ignoreApps.end()) {
+		isIgnoreWin = true;
+	}
+*/
 	Client *c = new Client;
+	//if (isIgnoreWin) c->isIgnore = true;
+	//c->title = title;
 	if (d->clients.size() == 0) {
 		c->id = 0;
 		d->clients.push_back(c);
@@ -204,14 +223,64 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 				                 decorateWinFocus : 
 				                 decorateWinInfocus);
 			XClearWindow(display, win);
+
+			XftColor msgcolor;
+			XftFont* msgfont;
+			int screen = DefaultScreen(display);
+			msgfont = XftFontOpenName(display, screen, config->FONT.c_str());
+			XftColorAllocName(display, DefaultVisual(display, screen), 
+				DefaultColormap(display, screen), config->TITLE_TEXT_COLOR.c_str(), &msgcolor);
+
+			XftDraw *draw = XftDrawCreate(display, win,
+				DefaultVisual(display, screen), DefaultColormap(display, screen));
 			
-			//XSetForeground (display, gc, BlackPixel(display, 0));
-			//XFontStruct *fontInfo;
-			//if ( (fontInfo =  XLoadQueryFont(display, config->FONT.c_str())) == nullptr) {
-			//	Logger::Err("Font not found!\n");
-			//	exit(1);
-			//}
-			
+			if (config->TITLE_POSITION == TITLE_UP) {
+				XftDrawString8 (draw, &msgcolor, msgfont, config->TITLE_DX, config->TITLE_DY, 
+					(XftChar8*)(*_c)->title.c_str(), 
+					(*_c)->title.size());
+			}
+			if (config->TITLE_POSITION == TITLE_DOWN) {
+				XWindowAttributes wa;
+				if (XGetWindowAttributes(display, win, &wa)) {
+					XftDrawString8 (draw, &msgcolor, msgfont, 
+						config->TITLE_DX, 
+						wa.height-config->TITLE_DY, 
+						(XftChar8*)(*_c)->title.c_str(), 
+						(*_c)->title.size());
+				}
+				
+			}
+			if (config->TITLE_POSITION == TITLE_LEFT) {
+				XWindowAttributes wa;
+				if (XGetWindowAttributes(display, win, &wa)) {
+					for (auto i = 0; i < (*_c)->title.size(); ++i) {
+						std::string s(1, (*_c)->title[i]);
+						XftDrawString8 (draw, &msgcolor, msgfont, 
+							config->TITLE_DX, 
+							config->TITLE_DY + i*msgfont->height, 
+							(XftChar8*)s.c_str(), 1);
+					}
+				}
+				
+			}
+			if (config->TITLE_POSITION == TITLE_RIGHT) {
+				XWindowAttributes wa;
+				if (XGetWindowAttributes(display, win, &wa)) {
+					for (auto i = 0; i < (*_c)->title.size(); ++i) {
+						std::string s(1, (*_c)->title[i]);
+						XftDrawString8 (draw, &msgcolor, msgfont, 
+							wa.width-config->TITLE_DX, 
+							config->TITLE_DY + i*msgfont->height, 
+							(XftChar8*)s.c_str(), 1);
+					}
+				}
+				
+			}
+			XFlush(display);
+			XftDrawDestroy(draw);
+
+
+			/*OLD VARIANT
 			GC gr; 
 			XGCValues gr_values;
 			gr_values.foreground = titleTextColor;
@@ -265,7 +334,7 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 				}
 				
 			}
-			XFreeGC(display, gr);
+			XFreeGC(display, gr);*/
 			//XUnloadFont(display, fontInfo->fid);
 		}
 		XSetWindowBorder(display, win, ((*_c) != d->GetCur()) ? winUnfocus : (m == monitors[monitorId]) ? winFocus : winInfocus);
@@ -438,13 +507,38 @@ void WindowManager::DesktopInfo() {
 	Client *c = nullptr;
 	bool urgent = false;
 
+	std::string info = "{\n";
+
 	for (int cm = 0; cm < monitorCount; cm++) {
-		for (int cd = 0, w = 0; cd < config->DESKTOPS; cd++, w = 0, urgent = false) {
+		info += "\"m" + std::to_string(cm) + "\" : {";
+		for (int cd = 0; cd < config->DESKTOPS; cd++) {
 			m = monitors[cm];
-			for (auto _c = m->desktops[cd]->clients.begin(); _c != m->desktops[cd]->clients.end(); urgent |= (*_c)->isUrgn, ++w, _c++);
-			Logger::Log("DESKTOP INFO %d:%d:%d:%d:%d:%d:%d\n", cm, cm == monitorId, cd, w, m->desktops[cd]->mode, cd == m->desktopCurId, urgent);
+			info += "\"d" + std::to_string(cd) + "\" : {";
+			auto cc = 0;
+			for (auto _c = m->desktops[cd]->clients.begin(); _c != m->desktops[cd]->clients.end(); _c++) {
+				info += "\"" + (*_c)->title + "\" : ";
+				if (m->desktops[cd]->curClientId == (*_c)->id) {
+					info += "true";
+				} else {
+					info += "false";
+				}
+				if (cc != m->desktops[cd]->clients.size()) {
+					info += ",\n";
+				}
+				cc++;
+			}
+			info += "}\n";
+			if (cd != config->DESKTOPS-1) {
+				info += ",\n";
+			}
+		}
+		info += "}\n";
+		if (cm != monitorCount-1) {
+			info += ",\n";
 		}
 	}
+	info += "}\n";
+	Logger::Log(info);
 }
 
 void WindowManager::destroyNotify(XEvent *e) {
@@ -628,7 +722,6 @@ void WindowManager::RunFunc(std::string type, std::string funcStr, const Argumen
 		if (funcStr == "MoveUp") {
 			MoveUp();
 		}
-
 		if (funcStr == "NextDesktop") {
 			NextDesktop(arg);
 		}
@@ -758,7 +851,7 @@ void WindowManager::GridMode(int x, int y, int w, int h, Desktop *d) {
 		}
 		}
 		if (++rn >= rows) {
-			rn = 0; 
+			rn = 0;
 			cn++;
 		}
 	}
@@ -864,6 +957,9 @@ void WindowManager::mapRequest(XEvent *e) {
 	d = m->desktops[newdsk];
 	
 	c = AddWindow(w, d);
+	if (c == nullptr) {
+		return;
+	}
 	c->isFull = false;
 	c->isTrans = XGetTransientForHint(display, c->win, &w);
 	if ((c->isFloat = (floating || d->mode == FLOAT)) && !c->isTrans) {
@@ -916,6 +1012,7 @@ void WindowManager::mapRequest(XEvent *e) {
 		ChangeMonitor(&arg1);
 		ChangeDesktop(&arg2);
 	}
+	//if (!c->isIgnore)
 	Focus(c, d, m);
 
 	if (!follow) {
@@ -1494,7 +1591,7 @@ int WindowManager::XError(Display* display, XErrorEvent* e) {
 		return 0;
 	}
 	//Logger::Err(" request: %i, code %i", e->request_code, e->error_code);
-	Logger::Log(" request: " +std::to_string(e->request_code)+ ", code " + std::to_string(e->error_code));
+	//Logger::Log(" request: " +std::to_string(e->request_code)+ ", code " + std::to_string(e->error_code));
 }
 
 void WindowManager::StackMode(int x, int y, int w, int h, Desktop *d) {

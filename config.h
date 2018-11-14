@@ -4,6 +4,7 @@
 #include <map>
 #include "utils.h"
 #include <memory>
+#include <algorithm>
 
 class WindowManager;
 
@@ -17,7 +18,8 @@ public:
 
 	int TITLE_POSITION                = TITLE_LEFT;// TITLE_LEFT TITLE_RIGHT TITLE_UP TITLE_DOWN
 	int TITLE_HEIGHT                  = 20;
-	bool SHOW_TITLE                   = false;
+	bool SHOW_TITLE                   = true;
+	//bool TITLE_IN_BEGIN = true;
 
 	bool SHOW_DECORATE                = true;
 	int DECORATE_BORDER_WIDTH         = 3;
@@ -46,11 +48,11 @@ public:
 	std::string DECORATE_FOCUS_COLOR  = "#3B6B71";
 	std::string DECORATE_UNFOCUS_COLOR= "#213846";
 	std::string DECORATE_INFOCUS_COLOR= "#213846";
-	std::string TITLE_TEXT_COLOR      = "#303030";//"#303030";
+	std::string TITLE_TEXT_COLOR      = "#ffffff";//"#303030";
 
 	int TITLE_DX                      = 5;
 	int TITLE_DY                      = 14;
-	std::string FONT                  = "-*-futura-regular-r-*-*-*12-*-*-*-*-*-*-*";
+	std::string FONT                  = "Verdana:size=11";
 
 	int MINWSZ                        = 50;//minimum window size
 	int DEFAULT_MONITOR               = 0;
@@ -81,8 +83,14 @@ public:
 		keys.push_back(Key(MOD4,       key, "ChangeMonitor",  Argument(mon)));
 		keys.push_back(Key(MOD4|SHIFT, key, "ClientToMonitor",Argument(mon)));
 	}
+	
+	std::vector<std::string> ignoreApps;
 
 	Config() {
+		//Ignore apps
+		ignoreApps.push_back("UnknownDock");
+
+
 		//Autostart
 		std::vector<char*> autos;
 		autos.push_back("feh");
@@ -95,7 +103,13 @@ public:
 		autos.push_back("conky");
 		autos.push_back(nullptr);
 		autostart.push_back(Argument(autos));
-		
+/*
+		autos.clear();
+		autos.push_back("python");
+		autos.push_back("/home/daniil/WM/dock.py");
+		autos.push_back(nullptr);
+		autostart.push_back(Argument(autos));
+		*/
 		//Mouse button
 		buttons.push_back(Button(MOD1,    Button1,  "MouseMotion",             Argument{.i = MOVE}));
 		buttons.push_back(Button(MOD1,    Button3,  "MouseMotion",             Argument{.i = RESIZE}));
@@ -172,6 +186,7 @@ public:
 		DesktopChange(XK_F3, 2);
 		DesktopChange(XK_F4, 3);
 	}
+
 
 	void Parse(std::string path) {
 

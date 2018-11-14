@@ -23,10 +23,10 @@ public:
 			vprintf(format, vargs);
 			printf("\n");
 			va_end(vargs);
-			/*FILE *f = fopen("/home/daniil/WM/log", "a");
+			FILE *f = fopen("/home/daniil/WM/log", "a");
 			fprintf(f, format, vargs);
 			//fflush(file); 
-			fclose(f);*/
+			fclose(f);
 		}
 	}
 
