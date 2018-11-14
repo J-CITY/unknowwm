@@ -13,7 +13,7 @@ Unknown WM is a simple window manager.
 
 First, install the XLib.
 
-Clone the repository and make it
+Clone the repository and compile it
 
 Compile WM
 
@@ -64,8 +64,8 @@ See config.h to get information about wn shortcuts.
 # Thanks
 
 * Tudurom [windowchef](https://github.com/tudurom/windowchef)
-* nnoell [windowchef](https://github.com/nnoell/neurowm)
-* c00kiemon5ter [windowchef](https://github.com/c00kiemon5ter/monsterwm)
+* nnoell [neurowm](https://github.com/nnoell/neurowm)
+* c00kiemon5ter [monsterwm](https://github.com/c00kiemon5ter/monsterwm)
 
 # Screenshots
 
@@ -85,9 +85,9 @@ Stack right mode
 
 ![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sr.png)
 
-Stack lefr mode
+Stack left mode
 
-![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sj.png)
+![Imgur](https://github.com/J-CITY/unknowwm/blob/master/screens/sl.png)
 
 Grid mode
 
