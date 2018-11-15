@@ -6,6 +6,7 @@ UNKNOWN WM
 #include <unistd.h>
 #include "logger.h"
 #include <algorithm>
+#include <unistd.h>
 
 std::unique_ptr<WindowManager> WindowManager::Create() {
 	Display* display = XOpenDisplay(nullptr);
@@ -120,12 +121,13 @@ void WindowManager::buttonPress(XEvent *e) {
 
 void WindowManager::ChangeDesktop(const Argument *arg) {
 	Monitor *m = monitors[monitorId];
+
 	if (arg->i == m->desktopCurId || arg->i < 0 || arg->i >= config->DESKTOPS) {
 		return;
 	}
+
 	Desktop *d = m->desktops[(m->desktopPrevId = m->desktopCurId)];
 	Desktop *n = m->desktops[(m->desktopCurId = arg->i)];
-	
 	auto _d = n->GetCur();
 	if (_d != nullptr){
 		if (config->SHOW_DECORATE && _d->isDecorated) {
@@ -161,7 +163,7 @@ void WindowManager::ChangeDesktop(const Argument *arg) {
 	XSetWindowAttributes attr2;
 	attr2.event_mask = RootMask();
 	XChangeWindowAttributes(display, rootWin, CWEventMask, &attr2);
-	
+
 	if (n->GetCur() != nullptr) { 
 		Tile(n, m);
 		Focus(n->GetCur(), n, m);
@@ -430,10 +432,12 @@ void WindowManager::ClientToMonitor(const Argument *arg) {
 	Monitor *nm = nullptr;
 	Desktop *cd = cm->desktops[cm->desktopCurId];
 	Desktop *nd = nullptr;
-	if (arg->i == monitorId || arg->i < 0 || arg->i >= monitorCount || !cd->GetCur()) {
+	if (arg->i == monitorId || arg->i < 0 || arg->i >= monitorCount || 
+		!cd->GetCur()) {
 		return;
 	}
-	nd = monitors[arg->i]->desktops[(nm = monitors[arg->i])->desktopCurId];
+	nm = monitors[arg->i];
+	nd = nm->desktops[nm->desktopCurId];
 	Client *c = cd->GetCur();
 	cd->clients.erase(cd->clients.begin()+cd->GetCur()->id);
 	int i = 0;
@@ -450,6 +454,7 @@ void WindowManager::ClientToMonitor(const Argument *arg) {
 		c->isFloat = c->isFull = false;
 	}
 	nd->clients.push_back(c);
+	c->id = nd->clients.size()-1;
 	Focus(c, nd, nm);
 	Tile(nd, nm);
 	if (config->FOLLOW_MONITOR) {
@@ -1175,22 +1180,48 @@ void WindowManager::Init() {
 	rootWin = RootWindow(display, screen);
 
 	/* initialize monitors and desktops */
-	XineramaScreenInfo *info = XineramaQueryScreens(display, &monitorCount);
+	/*XineramaScreenInfo *info = XineramaQueryScreens(display, &monitorCount);
 	if (!monitorCount || !info){
 		Logger::Err("Xinerama is not active");
 		exit(-1);
 	}
+	*/
+	for (auto i = 0; i < config->autostart.size(); ++i) {
+		RunCmd(&config->autostart[i]);
+	}
+	usleep(5000);
+	XRRScreenResources *screenList = XRRGetScreenResources(display, rootWin);
+	if (!screenList) {
+		Logger::Err("Xrandr is not active");
+		exit(-1);
+	}
 
-	monitors.resize(monitorCount);
-
-	for (int m = 0; m < monitorCount; m++) {
+	const int _monitorCount = screenList->ncrtc;
+	//monitors.resize(monitorCount);
+	XRRCrtcInfo *mscreen = nullptr;
+	for (int m = 0; m < _monitorCount; m++) {
+		
+		mscreen = XRRGetCrtcInfo(display, screenList, 
+			screenList->crtcs[m]);
+		if (!mscreen->mode) {
+			continue;
+		}
+		
 		Logger::Debug("Desktop Size %i\n", config->DESKTOPS);
+
+
 		Monitor *monitor = new Monitor(config->DESKTOPS);
-		monitor->x = info[m].x_org;
-		monitor->y = info[m].y_org;
-		monitor->w = info[m].width;
-		monitor->h = info[m].height; 
-		monitors[m] = monitor;
+		monitor->x = mscreen->x;
+		monitor->y = mscreen->y;
+		monitor->w = mscreen->width;
+		monitor->h = mscreen->height;
+		XRRFreeCrtcInfo(mscreen);
+		std::string monStr="monitor: " + std::to_string(monitor->x)+" "+
+			 std::to_string(monitor->y)+" "+
+			  std::to_string(monitor->w)+" "+
+			   std::to_string(monitor->h)+"\n";
+		Logger::Log(monStr);
+		monitors.push_back(monitor);
 		for (unsigned int d = 0; d < config->DESKTOPS; d++) {
 			Desktop *desk = new Desktop();
 			desk->nm = config->NMASTER;
@@ -1200,7 +1231,11 @@ void WindowManager::Init() {
 			monitors[m]->desktops[d] = desk;
 		}
 	}
-	XFree(info);
+	XRRFreeScreenResources(screenList);
+	//XFree(info);
+	monitorId = 0;
+	monitorCount = monitors.size();
+	Logger::Log("monitors: " + std::to_string(monitorCount));
 
 	winFocus = GetColor(config->FOCUS_COLOR, screen);
 	winUnfocus = GetColor(config->UNFOCUS_COLOR, screen);
@@ -1211,7 +1246,7 @@ void WindowManager::Init() {
 	decorateWinInfocus = GetColor(config->DECORATE_INFOCUS_COLOR, screen);
 
 	titleTextColor = GetColor(config->TITLE_TEXT_COLOR, screen);
-
+	
 	//  ??? set numlockmask 
 	XModifierKeymap *modmap = XGetModifierMapping(display);
 	for (int k = 0; k < 8; k++) {
@@ -1250,10 +1285,6 @@ void WindowManager::Init() {
 		Argument arg;
 		arg.i = this->config->DEFAULT_MONITOR;
 		ChangeMonitor(&arg);
-	}
-
-	for (auto i = 0; i < config->autostart.size(); ++i) {
-		RunCmd(&config->autostart[i]);
 	}
 }
 

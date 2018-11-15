@@ -278,6 +278,8 @@ private:
 	const std::string ACTION_HIDE_ALL_CLIENT_ON_DESKTOP = "HideAllClientOnDescktop";
 	const std::string ACTION_CHANGE_DESKTOP = "ChangeDesktop";
 	const std::string ACTION_CHANGE_LAYOUT = "ChangeLayout";
+	const std::string ACTION_CHANGE_MONITOR = "ChangeMonitor";
+	const std::string ACTION_CLIENT_TO_MONITOR = "ClientToMonitor";
 	
 	std::map<std::string, ActionFunction> runFuncMap = {
 		{ACTION_TOGGLE_PANEL, &WindowManager::TogglePanel},
@@ -307,6 +309,8 @@ private:
 		{ACTION_HIDE_ALL_CLIENT_ON_DESKTOP, &WindowManager::HideAllClientOnDescktop},
 		{ACTION_CHANGE_DESKTOP, &WindowManager::ChangeDesktop},
 		{ACTION_CHANGE_LAYOUT, &WindowManager::ChangeLayout},
+		{ACTION_CHANGE_MONITOR, &WindowManager::ChangeMonitor},
+		{ACTION_CLIENT_TO_MONITOR, &WindowManager::ClientToMonitor},
 	};
 
 

@@ -93,12 +93,13 @@ public:
 		std::vector<char*> autos;
 		autos.push_back("feh");
 		autos.push_back("--bg-scale");
-		autos.push_back("/home/daniil/WM/1.jpg");
+		autos.push_back("/home/daniil/unknowwm/1.jpg");
 		autos.push_back(nullptr);
 		autostart.push_back(Argument(autos));
 		
 		autos.clear();
-		autos.push_back("conky");
+		autos.push_back("/home/daniil/unknowwm/autorandr.sh");		
+		//autos.push_back("conky");
 		autos.push_back(nullptr);
 		autostart.push_back(Argument(autos));
 /*
@@ -183,6 +184,8 @@ public:
 		DesktopChange(XK_F2, 1);
 		DesktopChange(XK_F3, 2);
 		DesktopChange(XK_F4, 3);
+		MonitorChange(XK_F1, 0);
+		MonitorChange(XK_F2, 1);
 	}
 
 
