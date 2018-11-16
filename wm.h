@@ -83,6 +83,8 @@ private:
 	void PrevDesktop(const Argument *arg);
 	void NextFilledDesktop(const Argument *Argument);
 	void SwitchMode(const Argument *arg);
+	void RestartMonitors(const Argument *arg);
+	void Restart(const Argument *arg);
 
 	inline unsigned int RootMask() {
 		return SubstructureRedirectMask |
@@ -250,36 +252,6 @@ private:
 		{FIBONACCI,    &WindowManager::FibonacciMode},
 		{FLOAT,        &WindowManager::FloatMode}
 	};
-
-	const std::string ACTION_TOGGLE_PANEL = "TogglePanel";
-	const std::string ACTION_SWAP_MASTER = "SwapMaster";
-	const std::string ACTION_QUIT = "Quit";
-	const std::string ACTION_RUN_CMD = "RunCmd";
-	const std::string ACTION_KILL_CILENT = "KillClient";
-	const std::string ACTION_NEXT_WIN = "NextWin";
-	const std::string ACTION_PREW_WIN = "PrevWin";
-	const std::string ACTION_MOVE_RESIZE = "MoveResize";
-	const std::string ACTION_SWITCH_MODE = "SwitchMode";
-	const std::string ACTION_RESIZE_MASTER = "ResizeMaster";
-	const std::string ACTION_RESIZE_STACK = "ResizeStack";
-	const std::string ACTION_MOVE_DOWN = "MoveDown";
-	const std::string ACTION_MOVE_UP = "MoveUp";
-	const std::string ACTION_NEXT_DESKTOP = "NextDesktop";
-	const std::string ACTION_NEXT_FILLED_DESKTOP = "NextFilledDesktop";
-	const std::string ACTION_PREV_DESKTOP = "PrevDesktop";
-	const std::string ACTION_CLIENT_TO_DESKTOP = "ClientToDesktop";
-	const std::string ACTION_TOGGLE_FLOAT_CLIENT = "ToggleFloatClient";
-	const std::string ACTION_TOGGLE_FULLSCREEN_CLIENT = "ToggleFullscreenClient";
-	const std::string ACTION_CHANGE_DECORATE_BORDER = "ChangeDecorateBorder";
-	const std::string ACTION_CHANGE_BORDER = "ChangeBorder";
-	const std::string ACTION_CHANGE_GAP = "ChangeGap";
-	const std::string ACTION_ADD_MASTER = "AddMaster";
-	const std::string ACTION_HIDE_CUR_CLIENT = "HideCurClient";
-	const std::string ACTION_HIDE_ALL_CLIENT_ON_DESKTOP = "HideAllClientOnDescktop";
-	const std::string ACTION_CHANGE_DESKTOP = "ChangeDesktop";
-	const std::string ACTION_CHANGE_LAYOUT = "ChangeLayout";
-	const std::string ACTION_CHANGE_MONITOR = "ChangeMonitor";
-	const std::string ACTION_CLIENT_TO_MONITOR = "ClientToMonitor";
 	
 	std::map<std::string, ActionFunction> runFuncMap = {
 		{ACTION_TOGGLE_PANEL, &WindowManager::TogglePanel},
@@ -311,6 +283,8 @@ private:
 		{ACTION_CHANGE_LAYOUT, &WindowManager::ChangeLayout},
 		{ACTION_CHANGE_MONITOR, &WindowManager::ChangeMonitor},
 		{ACTION_CLIENT_TO_MONITOR, &WindowManager::ClientToMonitor},
+		{ACTION_RESTART, &WindowManager::Restart},
+		{ACTION_RESTART_MONITORS, &WindowManager::RestartMonitors},
 	};
 
 

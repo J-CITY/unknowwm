@@ -41,3 +41,33 @@
 	DEFAULT_DESKTOP               = 0
 	AUTOFLOATING                  = false
 	NMASTER                       = 1
+
+[[autostart]]
+	cmd = "/home/daniil/unknowwm/autorandr.sh"
+[[autostart]]
+	cmd = "feh"
+[[autostart]]
+	cmd = "feh --bg-scale /home/daniil/unknowwm/1.jpg"
+
+
+
+
+# mask ALT, CTRL, MOD1, MOD4, SHIFT
+# button: LEFT, RIGT, MIDDLE
+# action MOVE, RESIZE
+[[mouse]]
+	mask = "MOD1"
+	button = "LEFT"
+	action = "MOVE"
+
+[[mouse]]
+	mask = "MOD1"
+	button = "RIGHT"
+	action = "RESIZE"
+
+[[rules]]
+	class = "Thunar"
+	monitor = 0
+	desktop = 3
+	isfollow = true
+	isfloating = true

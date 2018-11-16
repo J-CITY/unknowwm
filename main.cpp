@@ -10,17 +10,19 @@ const std::string VERSION = "v0.5";
 void argParse(int argc, char** argv, std::string &configPath) {
 	if (argc == 2 && argv[1] == "-v") {
 		std::cout << VERSION << "\n";
+		exit(0);
 	} else if (argc == 2 && argv[1] == "-h") {
 		//Logger::Log("version: %s", "0.1");
 	} else if (argc == 3 && argv[1] == "-c") {
 		configPath = argv[2];
 	} else if (argc != 1) {
 		//Logger::Err("Wrong key");
+		exit(-1);
 	}
 }
 
 int main(int argc, char** argv) {
-	std::string configPath = "/home/daniil/WM/config";
+	std::string configPath = "/home/daniil/unknowwm/config";
 	argParse(argc, argv, configPath);
 	Config *config = new Config(configPath);
 	unique_ptr<WindowManager> windowManager(WindowManager::Create());

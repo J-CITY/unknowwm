@@ -65,6 +65,25 @@ Client* WindowManager::AddWindow(Window w, Desktop *d) {
 		if (XGetWindowAttributes(display, c->win, &wa)) {
 			XMoveResizeWindow(display, c->decorate, wa.x, wa.y, wa.width, wa.height);
 			MoveResizeLocal(c->win, wa.x, wa.y, wa.width, wa.height);
+
+			XWindowAttributes testWa;
+			XGetWindowAttributes(display, c->win, &testWa);
+			if (wa.width >= testWa.width || wa.height >= testWa.height) {
+				XMoveResizeWindow(display, c->decorate, testWa.x, wa.y, wa.width, wa.height);
+
+				int titleup = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP) ? config->TITLE_HEIGHT:0;
+				int titledown = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_DOWN) ? config->TITLE_HEIGHT:0;
+				int titleleft = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_LEFT) ? config->TITLE_HEIGHT:0;
+				int titleright = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_RIGHT) ? config->TITLE_HEIGHT:0;
+				int titleh = config->SHOW_TITLE ? config->TITLE_HEIGHT:0;
+				XMoveResizeWindow(display, c->decorate, 
+					testWa.x - config->BORDER_WIDTH - config->DECORATE_BORDER_WIDTH - titleleft, 
+					testWa.y - config->BORDER_WIDTH - config->DECORATE_BORDER_WIDTH - titleup, 
+					testWa.width+2*(config->DECORATE_BORDER_WIDTH) + ((titleright || titleleft)?titleh:0), 
+					testWa.height+2*(config->DECORATE_BORDER_WIDTH) + ((titleup || titledown)?titleh:0));
+
+
+			}
 		}
 	}
 	XSelectInput(display, c->win, 
@@ -1173,6 +1192,87 @@ void WindowManager::Sigchld(int sig) {
 	}
 }
 
+void WindowManager::Restart(const Argument *arg) {
+	for (auto i = 0; i < monitors.size(); ++i) {
+		for (auto d = 0; d < monitors[i]->desktops.size(); ++d) {
+			for (auto c = 0; c < monitors[i]->desktops[d]->clients.size(); ++c) {
+				KillClient(nullptr);
+			}
+		}
+	}
+
+	monitors.clear();
+
+	Init();
+}
+
+
+void WindowManager::RestartMonitors(const Argument *arg) {
+	XRRScreenResources *screenList = XRRGetScreenResources(display, rootWin);
+	if (!screenList) {
+		Logger::Err("Xrandr is not active");
+		exit(-1);
+	}
+
+	const int _monitorCount = screenList->ncrtc;
+	//monitors.resize(monitorCount);
+	XRRCrtcInfo *mscreen = nullptr;
+	auto _monitorCountTruth = 0;
+	for (int m = 0; m < _monitorCount; m++) {
+		
+		mscreen = XRRGetCrtcInfo(display, screenList, 
+			screenList->crtcs[m]);
+		if (!mscreen->mode) {
+			continue;
+		}
+
+		if (_monitorCountTruth < monitors.size()) {
+			monitors[m]->x = mscreen->x;
+			monitors[m]->y = mscreen->y;
+			monitors[m]->w = mscreen->width;
+			monitors[m]->h = mscreen->height;
+		
+		} else {
+			Monitor *monitor = new Monitor(config->DESKTOPS);
+			monitor->x = mscreen->x;
+			monitor->y = mscreen->y;
+			monitor->w = mscreen->width;
+			monitor->h = mscreen->height;
+			monitors.push_back(monitor);
+			for (unsigned int d = 0; d < config->DESKTOPS; d++) {
+				Desktop *desk = new Desktop();
+				desk->nm = config->NMASTER;
+				auto mode = config->initLayout[d] != -1 ? config->initLayout[d] : config->DEFAULT_MODE;
+				desk->mode = mode;
+				desk->isBar = config->SHOW_PANEL;
+				monitors[m]->desktops[d] = desk;
+			}
+		}
+		_monitorCountTruth++;
+
+		XRRFreeCrtcInfo(mscreen);
+	}
+
+	if (_monitorCountTruth < monitors.size()) {
+		for (auto i = _monitorCountTruth; i < monitors.size(); ++i) {
+			for (auto d = 0; d < monitors[i]->desktops.size(); ++d) {
+				for (auto c = 0; c < monitors[i]->desktops[d]->clients.size(); ++c) {
+					KillClient(nullptr);
+				}
+			}
+		}
+		auto ms = monitors.size();
+		for (auto i = _monitorCountTruth; i < ms; ++i) {
+			monitors.erase(monitors.end()-1);
+		}
+	}
+
+	XRRFreeScreenResources(screenList);
+	
+}
+
+
+
 void WindowManager::Init() {
 
 	WindowManager::Sigchld(0);
@@ -1189,7 +1289,7 @@ void WindowManager::Init() {
 	for (auto i = 0; i < config->autostart.size(); ++i) {
 		RunCmd(&config->autostart[i]);
 	}
-	usleep(5000);
+	//usleep(5000);
 	XRRScreenResources *screenList = XRRGetScreenResources(display, rootWin);
 	if (!screenList) {
 		Logger::Err("Xrandr is not active");

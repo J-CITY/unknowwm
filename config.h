@@ -6,8 +6,40 @@
 #include <memory>
 #include <algorithm>
 #include "toml.h"
-
+#include <iostream>
 class WindowManager;
+
+const std::string ACTION_TOGGLE_PANEL = "TogglePanel";
+const std::string ACTION_SWAP_MASTER = "SwapMaster";
+const std::string ACTION_QUIT = "Quit";
+const std::string ACTION_RUN_CMD = "RunCmd";
+const std::string ACTION_KILL_CILENT = "KillClient";
+const std::string ACTION_NEXT_WIN = "NextWin";
+const std::string ACTION_PREW_WIN = "PrevWin";
+const std::string ACTION_MOVE_RESIZE = "MoveResize";
+const std::string ACTION_SWITCH_MODE = "SwitchMode";
+const std::string ACTION_RESIZE_MASTER = "ResizeMaster";
+const std::string ACTION_RESIZE_STACK = "ResizeStack";
+const std::string ACTION_MOVE_DOWN = "MoveDown";
+const std::string ACTION_MOVE_UP = "MoveUp";
+const std::string ACTION_NEXT_DESKTOP = "NextDesktop";
+const std::string ACTION_NEXT_FILLED_DESKTOP = "NextFilledDesktop";
+const std::string ACTION_PREV_DESKTOP = "PrevDesktop";
+const std::string ACTION_CLIENT_TO_DESKTOP = "ClientToDesktop";
+const std::string ACTION_TOGGLE_FLOAT_CLIENT = "ToggleFloatClient";
+const std::string ACTION_TOGGLE_FULLSCREEN_CLIENT = "ToggleFullscreenClient";
+const std::string ACTION_CHANGE_DECORATE_BORDER = "ChangeDecorateBorder";
+const std::string ACTION_CHANGE_BORDER = "ChangeBorder";
+const std::string ACTION_CHANGE_GAP = "ChangeGap";
+const std::string ACTION_ADD_MASTER = "AddMaster";
+const std::string ACTION_HIDE_CUR_CLIENT = "HideCurClient";
+const std::string ACTION_HIDE_ALL_CLIENT_ON_DESKTOP = "HideAllClientOnDescktop";
+const std::string ACTION_CHANGE_DESKTOP = "ChangeDesktop";
+const std::string ACTION_CHANGE_LAYOUT = "ChangeLayout";
+const std::string ACTION_CHANGE_MONITOR = "ChangeMonitor";
+const std::string ACTION_CLIENT_TO_MONITOR = "ClientToMonitor";
+const std::string ACTION_RESTART_MONITORS = "RestartMonitors";
+const std::string ACTION_RESTART = "Restart";
 
 class Config {
 public:
@@ -110,8 +142,8 @@ public:
 		autostart.push_back(Argument(autos));
 		*/
 		//Mouse button
-		buttons.push_back(Button(MOD1,    Button1,  "MouseMotion",             Argument{.i = MOVE}));
-		buttons.push_back(Button(MOD1,    Button3,  "MouseMotion",             Argument{.i = RESIZE}));
+		//buttons.push_back(Button(MOD1,    Button1,  "MouseMotion",             Argument{.i = MOVE}));
+		//buttons.push_back(Button(MOD1,    Button3,  "MouseMotion",             Argument{.i = RESIZE}));
 		
 		//Rules
 		rules.push_back(AppRule( "Thunar",     0,       3,    true,   true));
@@ -171,6 +203,10 @@ public:
 		keys.push_back(Key(MOD1,          XK_v,     "HideAllClientOnDescktop", Argument{nullptr}));
 		keys.push_back(Key(MOD1,          XK_f,     "ChangeLayout",            Argument(+1)));
 		keys.push_back(Key(MOD1,          XK_g,     "ChangeLayout",            Argument(-1)));
+
+		keys.push_back(Key(MOD4,          XK_g,     "Restart",                 Argument(nullptr)));
+		keys.push_back(Key(MOD4,          XK_f,     "RestartMonitors",         Argument(nullptr)));
+
 		std::vector<int> mv5 = {0,  0,   0,   25};
 		keys.push_back(Key(MOD4|SHIFT,    XK_j,     "MoveResize",              Argument(mv5)));
 		std::vector<int> mv6 = {0,  0,   0,   -25};
@@ -264,32 +300,73 @@ public:
 		this->NMASTER               = config->get_qualified_as<int>("main.NMASTER").value_or(1);
 		
 
+		/*auto autostartTable = config->get_table_array("autostart");
+		for (const auto& t : *autostartTable) {
+			auto cmd = t->get_as<std::string>("cmd").value_or("");
+			std::vector<char*> autos;
+			std::stringstream test(cmd);
+			std::string segment;
+			while(std::getline(test, segment, ' ')) {
+				autos.push_back((char*)segment.c_str());
+			}
+			autos.push_back(nullptr);
+			autostart.push_back(Argument(autos));
+		}*/
+
+		std::map <std::string, int> maskMap = {
+			{ "SHIFT", ShiftMask },
+			{ "CONTROL", ControlMask },
+			{ "MOD1", Mod1Mask },
+			{ "MOD4", Mod4Mask },
+			{ "NULL", 0 }
+		};
+		std::map <std::string, int> btnMap = {
+			{ "LEFT", Button1 },
+			{ "RIGHT", Button3 },
+			{ "MIDDLE", Button2 }
+		};
+		std::map <std::string, int> actionMap = {
+			{ "MOVE", MOVE },
+			{ "RESIZE", RESIZE }
+		};
+		auto btnTable = config->get_table_array("mouse");
+		for (const auto& t : *btnTable) {
+			auto mask = t->get_as<std::string>("mask").value_or("");
+			std::vector<char*> masks;
+			std::stringstream test(mask);
+			std::string segment;
+			while(std::getline(test, segment, '|')) {
+				masks.push_back((char*)segment.c_str());
+			}
+			unsigned int resMask = 0;
+			for (auto &m : masks) {
+				resMask |= maskMap[m];
+			}
+			
+			auto btn = t->get_as<std::string>("button").value_or("");
+			auto resBtn = btnMap[btn];
+
+			auto action = t->get_as<std::string>("action").value_or("");
+			auto resAction = actionMap[action];
+
+			buttons.push_back(Button(resMask, resBtn, "MouseMotion", Argument{.i = resAction}));
+		
+		}
+
+		//rules
+		/*auto rulesTable = config->get_table_array("rules");
+		for (const auto& t : *rulesTable) {
+			auto resClass = t->get_as<std::string>("class").value_or("");
+			auto resMonitor = t->get_as<int>("monitor").value_or(0);
+			auto resDesktop = t->get_as<int>("desktop").value_or(0);
+			auto resIsfollow = t->get_as<bool>("isfollow").value_or(true);
+			auto resIsfloating = t->get_as<bool>("isfloating").value_or(true);
+			rules.push_back(AppRule(resClass.c_str(), resMonitor, resDesktop, resIsfollow, resIsfloating));
+		}*/
 	}
+
+
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
