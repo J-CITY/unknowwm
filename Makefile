@@ -5,8 +5,8 @@ BINDIR ?= ${PREFIX}/bin
 MANPREFIX = ${PREFIX}/share/man
 
 X11INC = -I/usr/X11R6/include
-X11LIB = -L/usr/X11R6/lib -lX11 -lXft -lfreetype -lz -lfontconfig -I/usr/include/freetype2
-XINERAMALIB = -lXinerama
+X11LIB = -L/usr/X11R6/lib -lX11 -lXft -lfreetype -lpthread -lz -lfontconfig -I/usr/include/freetype2
+XINERAMALIB = -lXrandr
 
 INCS = -I. -I/usr/include ${X11INC}
 LIBS = -L/usr/lib -lc ${X11LIB} ${XINERAMALIB}
@@ -17,7 +17,7 @@ LDFLAGS  = ${LIBS}
 GCC 	 = g++
 EXEC = ${WMNAME}
 
-SRC = ${WMNAME}.cpp main.cpp
+SRC = ${WMNAME}.cpp main.cpp TCPServer.cpp TCPClient.cpp
 OBJ = ${SRC:.c=.o}
 
 all: CFLAGS += -Os
@@ -31,7 +31,7 @@ debug: options ${WMNAME}
 	@echo GCC $<
 	@${GCC} -c ${CFLAGS} $<
 
-${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h
+${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h TCPServer.h TCPClient.h
 
 
 ${WMNAME}: ${OBJ}

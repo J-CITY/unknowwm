@@ -7,6 +7,85 @@ UNKNOWN WM
 #include "logger.h"
 #include <algorithm>
 #include <unistd.h>
+#include <thread>
+
+void WindowManager::ParseStr(std::string instr) {
+	std::vector<std::string> strs;
+	std::stringstream test(instr);
+	std::string segment;
+	while(std::getline(test, segment, ':')) {
+		strs.push_back(segment);
+	}
+	if (strs.size() != 2) {
+		return;
+	}
+	if (strs[0] == "monitor") {
+		Argument arg(std::stoi(strs[1]));
+		ChangeMonitor(&arg);
+	} else if (strs[0] == "desktop") {
+		Argument arg(std::stoi(strs[1]));
+		ChangeDesktop(&arg);
+	} else if (strs[0] == "client") {
+		Argument arg(std::stoi(strs[1]));
+		FocusWinById(&arg);
+	} else if (strs[0] == "mode") {
+		std::map <std::string, int> modeMap = {
+			{ "V_STACK_LEFT", V_STACK_LEFT },
+			{ "V_STACK_RIGHT", V_STACK_RIGHT },
+			{ "H_STACK_UP", H_STACK_UP },
+			{ "H_STACK_DOWN", H_STACK_DOWN },
+			{ "MONOCLE", MONOCLE },
+			{ "GRID", GRID },
+			{ "FLOAT", FLOAT },
+			{ "FIBONACCI", FIBONACCI },
+			{ "MODES",MODES }
+		};
+		Argument arg(modeMap[strs[1]]);
+		SwitchMode(&arg);
+	}
+
+	return;
+}
+
+void WindowManager::GetDockPipe() {
+	while (true) {
+		if (config->PIPE_DOCK_INFO == "") {
+			return;
+		}
+		std::string line;
+		std::ifstream in(config->PIPE_DOCK_INFO);
+		std::cout << "##\n";
+		if (in.is_open()) {
+			std::cout << "%%\n";
+			while (std::getline(in, line)) {
+				//ParseStr(line);
+				std::cout << "&&"<<line << std::endl;
+			}
+			std::cout << "**\n";
+		}
+		std::cout << "!!\n";
+		in.close();
+		std::cout << "!!!\n";
+		/*auto BUZZ_SIZE = 1024;
+		char buff[BUZZ_SIZE];
+		FILE *f = fopen(config->PIPE_DOCK_INFO.c_str(), "r");
+		std::cout <<config->PIPE_DOCK_INFO.c_str()<< "@@\n";
+		
+		if (f) {
+			std::cout << "%%\n";
+		
+			fgets(buff, BUZZ_SIZE, f);
+			std::string s = buff;
+			ParseStr(s);
+			std::cout << "String read: " << buff << "\n";
+			std::cout << "**\n";
+		
+		}
+		fclose(f);*/
+		
+		usleep(100);
+	}
+}
 
 std::unique_ptr<WindowManager> WindowManager::Create() {
 	Display* display = XOpenDisplay(nullptr);
@@ -17,7 +96,8 @@ std::unique_ptr<WindowManager> WindowManager::Create() {
 	return std::unique_ptr<WindowManager>(new WindowManager(display));
 }
 
-WindowManager::WindowManager(Display* display): display(display) {}
+WindowManager::WindowManager(Display* display): display(display) {
+}
 
 Client* WindowManager::AddWindow(Window w, Desktop *d) {
 	/*std::string title = "";
@@ -63,13 +143,16 @@ Client* WindowManager::AddWindow(Window w, Desktop *d) {
 		c->isDecorated = true;
 		XWindowAttributes wa;
 		if (XGetWindowAttributes(display, c->win, &wa)) {
+			auto _w = wa.width;
+			auto _h = wa.height;
 			XMoveResizeWindow(display, c->decorate, wa.x, wa.y, wa.width, wa.height);
 			MoveResizeLocal(c->win, wa.x, wa.y, wa.width, wa.height);
-
+			
 			XWindowAttributes testWa;
 			XGetWindowAttributes(display, c->win, &testWa);
-			if (wa.width >= testWa.width || wa.height >= testWa.height) {
-				XMoveResizeWindow(display, c->decorate, testWa.x, wa.y, wa.width, wa.height);
+			if (_w -2*(config->DECORATE_BORDER_WIDTH)- 2*(config->BORDER_WIDTH)- ((config->SHOW_TITLE && (config->TITLE_POSITION == TITLE_RIGHT || config->TITLE_POSITION == TITLE_LEFT)) ? config->TITLE_HEIGHT:0) < testWa.width || 
+				_h -2*(config->DECORATE_BORDER_WIDTH)- 2*(config->BORDER_WIDTH)- ((config->SHOW_TITLE && (config->TITLE_POSITION == TITLE_UP || config->TITLE_POSITION == TITLE_DOWN)) ? config->TITLE_HEIGHT:0)  < testWa.height) {
+				//XMoveResizeWindow(display, c->decorate, testWa.x, wa.y, wa.width, wa.height);
 
 				int titleup = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP) ? config->TITLE_HEIGHT:0;
 				int titledown = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_DOWN) ? config->TITLE_HEIGHT:0;
@@ -187,6 +270,7 @@ void WindowManager::ChangeDesktop(const Argument *arg) {
 		Tile(n, m);
 		Focus(n->GetCur(), n, m);
 	}
+	Logger::Log("CHANGE DESKTOP!!!n");
 	DesktopInfo();
 }
 
@@ -402,6 +486,7 @@ void WindowManager::Cleanup(void) {
 		delete (*it);
 	}
 	monitors.clear();
+	delete config;
 }
 
 void WindowManager::ClientToDesktop(const Argument *arg) {
@@ -532,37 +617,67 @@ void WindowManager::DesktopInfo() {
 	bool urgent = false;
 
 	std::string info = "{\n";
-
+	info += "\"monitors\": [\n";
 	for (int cm = 0; cm < monitorCount; cm++) {
-		info += "\"m" + std::to_string(cm) + "\" : {";
+		info += "{\n";
+		info += (monitorId == cm ? "\"cur\": true,\n" : "\"cur\": false,\n");
+		info += "\"desktops\": [\n";
 		for (int cd = 0; cd < config->DESKTOPS; cd++) {
 			m = monitors[cm];
-			info += "\"d" + std::to_string(cd) + "\" : {";
+			info += "{\n";
+			info += (m->desktopCurId == cd ? "\"cur\": true,\n" : "\"cur\": false,\n");
+			info += "\"mode\":";
+			info += std::to_string(m->desktops[cd]->mode) + ",\n";
+			info += "\"clients\": [\n";
 			auto cc = 0;
 			for (auto _c = m->desktops[cd]->clients.begin(); _c != m->desktops[cd]->clients.end(); _c++) {
-				info += "\"" + (*_c)->title + "\" : ";
+				info += "{\n";
+				info += "\"title\": \"" + (*_c)->title + "\",";
 				if (m->desktops[cd]->curClientId == (*_c)->id) {
-					info += "true";
+					info += "\"cur\": true";
 				} else {
-					info += "false";
+					info += "\"cur\": false";
 				}
-				if (cc != m->desktops[cd]->clients.size()) {
+				info += "}";
+				if (cc != m->desktops[cd]->clients.size()-1) {
 					info += ",\n";
+				} else {
+					info += "\n";
 				}
 				cc++;
 			}
+			info += "]\n";
 			info += "}\n";
 			if (cd != config->DESKTOPS-1) {
 				info += ",\n";
+			} else {
+				info += "\n";
 			}
 		}
-		info += "}\n";
+		info += "]";
+		info += "}";
 		if (cm != monitorCount-1) {
 			info += ",\n";
+		} else {
+			info += "\n";
 		}
 	}
+	info += "]\n";
 	info += "}\n";
 	Logger::Log(info);
+	
+	FILE *f = fopen("/home/daniil/wminfo", "w");
+	if (f != nullptr) {
+		fprintf(f, "%s", info.c_str());
+	}
+	fclose(f);
+	//std::ofstream out;
+	//out.open("/home/daniil/wminfo");
+	//if (out.is_open()) {
+	//	out << info;
+	//}
+	//out.close();
+	//tcp.Send(info);
 }
 
 void WindowManager::destroyNotify(XEvent *e) {
@@ -873,7 +988,7 @@ void WindowManager::mapRequest(XEvent *e) {
 
 	if (XGetClassHint(display, w, &ch)) {
 		for (unsigned int i = 0; i < config->rules.size(); i++) {
-			if (strstr(ch.res_class, config->rules[i].appClass) || strstr(ch.res_name, config->rules[i].appClass)) {
+			if (strstr(ch.res_class, config->rules[i].appClass.c_str()) || strstr(ch.res_name, config->rules[i].appClass.c_str())) {
 				if (config->rules[i].monitor >= 0 && config->rules[i].monitor < monitorCount) {
 					newmon = config->rules[i].monitor;
 				}
@@ -1141,6 +1256,17 @@ void WindowManager::MoveResize(const Argument *Argument) {
 	}
 }
 
+void WindowManager::FocusWinById(const Argument *arg) {//arg is id
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
+	if (d->GetCur() && d->clients.size() > arg->i) {
+		auto c = d->clients[arg->i];
+		if (c->isHide) {
+			HideClient(c, monitors[monitorId]);
+		}
+		Focus(c, d, monitors[monitorId]);
+	}
+}
+
 void WindowManager::NextWin(const Argument *arg) {
 	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
 	if (d->GetCur() && d->clients.size() > 1) {
@@ -1202,7 +1328,9 @@ void WindowManager::Restart(const Argument *arg) {
 	}
 
 	monitors.clear();
-
+	std::string path = config->CONFIG_PATH;
+	delete config;
+	config = new Config(path);
 	Init();
 }
 
@@ -1271,9 +1399,10 @@ void WindowManager::RestartMonitors(const Argument *arg) {
 	
 }
 
-
-
 void WindowManager::Init() {
+
+	//std::thread thr(&WindowManager::GetDockPipe, *this);
+	//thr.detach();
 
 	WindowManager::Sigchld(0);
 	const int screen = DefaultScreen(display);
@@ -1402,12 +1531,14 @@ void WindowManager::RunCmd(const Argument *arg) {
 		close(ConnectionNumber(display));
 	}
 	setsid();
-	auto sz = arg->com.size();
+	auto sz = arg->com.size()+1;
 	char * a[sz];
-	for(unsigned int i = 0; i < sz; i++) {
-		a[i] = arg->com[i];
+	for(unsigned int i = 0; i < sz-1; i++) {
+		std::cout <<arg->com[i]<<" RUNCMD\n"; 
+		a[i] = (char*)(arg->com[i].c_str());
 	}
-	execvp(arg->com[0], a);
+	a[sz-1] = nullptr;
+	execvp((char*)(arg->com[0].c_str()), a);
 }
 
 void WindowManager::SwapMaster(const Argument *arg) {
@@ -1636,6 +1767,7 @@ int WindowManager::XError(Display* display, XErrorEvent* e) {
 		
 		return 0;
 	}
+	//exit(-1);
 	//Logger::Err(" request: %i, code %i", e->request_code, e->error_code);
 	//Logger::Log(" request: " +std::to_string(e->request_code)+ ", code " + std::to_string(e->error_code));
 }

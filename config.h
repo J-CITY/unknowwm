@@ -4,6 +4,7 @@
 #include <map>
 #include "utils.h"
 #include <memory>
+#include <set>
 #include <algorithm>
 #include "toml.h"
 #include <iostream>
@@ -117,12 +118,22 @@ public:
 		keys.push_back(Key(MOD4|SHIFT, key, "ClientToMonitor",Argument(mon)));
 	}
 
+	std::string PIPE_WM_INFO = "/home/daniil/wminfo";
+	std::string PIPE_DOCK_INFO = "/home/daniil/dockinfo";
+
+	std::string CONFIG_PATH = "";
+
 	Config(std::string configPath="") {
+		CONFIG_PATH = configPath;
 		Parse(configPath);
-
-
+		if (configPath == "") {
+			InitDefault();
+		}
+	}
+	
+	void InitDefault() {
 		//Autostart
-		std::vector<char*> autos;
+		/*std::vector<char*> autos;
 		autos.push_back("feh");
 		autos.push_back("--bg-scale");
 		autos.push_back("/home/daniil/unknowwm/1.jpg");
@@ -133,7 +144,7 @@ public:
 		autos.push_back("/home/daniil/unknowwm/autorandr.sh");		
 		//autos.push_back("conky");
 		autos.push_back(nullptr);
-		autostart.push_back(Argument(autos));
+		autostart.push_back(Argument(autos));*/
 /*
 		autos.clear();
 		autos.push_back("python");
@@ -146,15 +157,15 @@ public:
 		//buttons.push_back(Button(MOD1,    Button3,  "MouseMotion",             Argument{.i = RESIZE}));
 		
 		//Rules
-		rules.push_back(AppRule( "Thunar",     0,       3,    true,   true));
+		//rules.push_back(AppRule( "Thunar",     0,       3,    true,   true));
 
 		keys.push_back(Key(MOD1,          XK_b,      "TogglePanel",            Argument{nullptr}));
 		keys.push_back(Key(MOD1|CONTROL,  XK_r,      "Quit",                   Argument{.i = 0}));
 		keys.push_back(Key(MOD1|CONTROL,  XK_q,      "Quit",                   Argument{.i = 1}));
-		std::vector<char*> a;
+		std::vector<std::string> a;
 		a.push_back("xfce4-terminal");
-		a.push_back(nullptr);
-		keys.push_back(Key(MOD1|SHIFT,    XK_Return, "RunCmd",                 Argument{.com = a}));
+		//a.push_back(nullptr);
+		keys.push_back(Key(MOD1|SHIFT,    XK_Return, "RunCmd",                 Argument(a)));
 		keys.push_back(Key(MOD1|SHIFT,    XK_c,      "KillClient",             Argument{nullptr}));
 		keys.push_back(Key(MOD1,          XK_j,      "NextWin",                Argument{nullptr}));
 		keys.push_back(Key(MOD1,          XK_k,      "PrevWin",                Argument{nullptr}));
@@ -224,12 +235,36 @@ public:
 		MonitorChange(XK_F2, 1);
 	}
 
+	unsigned int GetMask(std::string mask) {
+		std::map <std::string, int> maskMap = {
+			{ "SHIFT", ShiftMask },
+			{ "CONTROL", ControlMask },
+			{ "MOD1", Mod1Mask },
+			{ "MOD4", Mod4Mask },
+			{ "NULL", 0 }
+		};
+
+		std::vector<std::string> masks;
+		std::stringstream test(mask);
+		std::string segment;
+		while(std::getline(test, segment, '|')) {
+			masks.push_back(segment);
+		}
+		unsigned int resMask = 0;
+		for (auto &m : masks) {
+			resMask |= maskMap[m];
+		}
+		return resMask;
+	}
 
 	void Parse(std::string path) {
 		if (path == "") {
 			return;
 		}
 		auto config = cpptoml::parse_file(path);
+
+		this->PIPE_WM_INFO     = config->get_qualified_as<std::string>("main.PIPE_WM_INFO").value_or("");
+		this->PIPE_DOCK_INFO     = config->get_qualified_as<std::string>("main.PIPE_DOCK_INFO").value_or("");
 
 		this->PANEL_HEIGHT_HORIZONTAL_UP    = config->get_qualified_as<int>("main.PANEL_HEIGHT_HORIZONTAL_UP").value_or(22);
 		this->PANEL_HEIGHT_HORIZONTAL_DOWN  = config->get_qualified_as<int>("main.PANEL_HEIGHT_HORIZONTAL_DOWN").value_or(0);
@@ -299,27 +334,67 @@ public:
 		this->AUTOFLOATING          = config->get_qualified_as<bool>("main.AUTOFLOATING").value_or(false);
 		this->NMASTER               = config->get_qualified_as<int>("main.NMASTER").value_or(1);
 		
+		std::map <std::string, KeySym> keyMap = {
+			{ "KEY_A", XK_a },
+			{ "KEY_B", XK_b },
+			{ "KEY_C", XK_c },
+			{ "KEY_D", XK_d },
+			{ "KEY_E", XK_e },
+			{ "KEY_F", XK_f },
+			{ "KEY_G", XK_g },
+			{ "KEY_H", XK_h },
+			{ "KEY_I", XK_i },
+			{ "KEY_J", XK_j },
+			{ "KEY_K", XK_k },
+			{ "KEY_L", XK_l },
+			{ "KEY_M", XK_m },
+			{ "KEY_N", XK_n },
+			{ "KEY_O", XK_o },
+			{ "KEY_P", XK_p },
+			{ "KEY_Q", XK_q },
+			{ "KEY_R", XK_r },
+			{ "KEY_S", XK_s },
+			{ "KEY_T", XK_t },
+			{ "KEY_U", XK_u },
+			{ "KEY_V", XK_v },
+			{ "KEY_W", XK_w },
+			{ "KEY_X", XK_x },
+			{ "KEY_Y", XK_y },
+			{ "KEY_Z", XK_z },
+			{ "KEY_RETURN", XK_Return },
+			{ "KEY_PERIOD", XK_period },
+			{ "KEY_COMMA", XK_comma },
+			{ "KEY_TAB", XK_Tab },
+			{ "KEY_F1", XK_F1 },
+			{ "KEY_F2", XK_F2 },
+			{ "KEY_F3", XK_F3 },
+			{ "KEY_F4", XK_F4 },
+			{ "KEY_F5", XK_F5 },
+			{ "KEY_F6", XK_F6 },
+			{ "KEY_F7", XK_F7 },
+			{ "KEY_F8", XK_F8 },
+			{ "KEY_F9", XK_F9 },
+			{ "KEY_F10", XK_F10 },
+			{ "KEY_F11", XK_F11 },
+			{ "KEY_F12", XK_F12 },
+		};
 
-		/*auto autostartTable = config->get_table_array("autostart");
+		auto autostartTable = config->get_table_array("autostart");
 		for (const auto& t : *autostartTable) {
+			std::cout << "autostart\n";
 			auto cmd = t->get_as<std::string>("cmd").value_or("");
-			std::vector<char*> autos;
+			std::vector<std::string> autos;
 			std::stringstream test(cmd);
 			std::string segment;
 			while(std::getline(test, segment, ' ')) {
-				autos.push_back((char*)segment.c_str());
+				autos.push_back(segment);
+				std::cout << autos[autos.size()-1] << " ::\n";
 			}
-			autos.push_back(nullptr);
-			autostart.push_back(Argument(autos));
-		}*/
+			autostart.emplace_back(autos);
+			std::cout << autostart[0].com[0] << " @@\n";
+		}
 
-		std::map <std::string, int> maskMap = {
-			{ "SHIFT", ShiftMask },
-			{ "CONTROL", ControlMask },
-			{ "MOD1", Mod1Mask },
-			{ "MOD4", Mod4Mask },
-			{ "NULL", 0 }
-		};
+		
 		std::map <std::string, int> btnMap = {
 			{ "LEFT", Button1 },
 			{ "RIGHT", Button3 },
@@ -332,16 +407,7 @@ public:
 		auto btnTable = config->get_table_array("mouse");
 		for (const auto& t : *btnTable) {
 			auto mask = t->get_as<std::string>("mask").value_or("");
-			std::vector<char*> masks;
-			std::stringstream test(mask);
-			std::string segment;
-			while(std::getline(test, segment, '|')) {
-				masks.push_back((char*)segment.c_str());
-			}
-			unsigned int resMask = 0;
-			for (auto &m : masks) {
-				resMask |= maskMap[m];
-			}
+			auto resMask = GetMask(mask);
 			
 			auto btn = t->get_as<std::string>("button").value_or("");
 			auto resBtn = btnMap[btn];
@@ -354,18 +420,108 @@ public:
 		}
 
 		//rules
-		/*auto rulesTable = config->get_table_array("rules");
+		auto rulesTable = config->get_table_array("rules");
 		for (const auto& t : *rulesTable) {
 			auto resClass = t->get_as<std::string>("class").value_or("");
 			auto resMonitor = t->get_as<int>("monitor").value_or(0);
 			auto resDesktop = t->get_as<int>("desktop").value_or(0);
 			auto resIsfollow = t->get_as<bool>("isfollow").value_or(true);
 			auto resIsfloating = t->get_as<bool>("isfloating").value_or(true);
-			rules.push_back(AppRule(resClass.c_str(), resMonitor, resDesktop, resIsfollow, resIsfloating));
-		}*/
+			rules.push_back(AppRule(resClass, resMonitor, resDesktop, resIsfollow, resIsfloating));
+		}
+
+
+		//move resize
+		auto moveResizeTable = config->get_table_array("cmd_move_restart");
+		for (const auto& t : *moveResizeTable) {
+			auto mask = t->get_as<std::string>("mask").value_or("");
+			auto resMask = GetMask(mask);
+			auto key = t->get_as<std::string>("key").value_or("");
+			auto resKey = keyMap[key];
+			auto moveresize = t->get_array_of<int64_t>("moveresize");
+			std::vector<int> arr;
+			for (const auto& val : *moveresize) {
+				arr.push_back(val);
+			}
+			keys.push_back(Key(resMask, resKey, "MoveResize", Argument(arr)));
+		}
+
+
+		//runcmd
+		auto runTable = config->get_table_array("cmd_run");
+		for (const auto& t : *runTable) {
+			auto cmd = t->get_as<std::string>("cmd").value_or("");
+			std::vector<std::string> run;
+			std::stringstream test(cmd);
+			std::string segment;
+			while(std::getline(test, segment, ' ')) {
+				run.push_back(segment);
+			}
+			auto mask = t->get_as<std::string>("mask").value_or("");
+			auto resMask = GetMask(mask);
+			auto key = t->get_as<std::string>("key").value_or("");
+			auto resKey = keyMap[key];
+			keys.push_back(Key(resMask, resKey, "RunCmd", Argument(run)));
+		}
+
+		//layout
+		std::map <std::string, int> layoutMap = {
+			{ "V_STACK_LEFT", V_STACK_LEFT }, 
+			{ "V_STACK_RIGHT", V_STACK_RIGHT }, 
+			{ "H_STACK_UP", H_STACK_UP }, 
+			{ "H_STACK_DOWN", H_STACK_DOWN }, 
+			{ "MONOCLE", MONOCLE }, 
+			{ "GRID", GRID }, 
+			{ "FLOAT", FLOAT }, 
+			{ "FIBONACCI", FIBONACCI }, 
+			{ "MODES", MODES } 
+		};
+		auto layoutTable = config->get_table_array("cmd_layout");
+		for (const auto& t : *layoutTable) {
+			auto mask = t->get_as<std::string>("mask").value_or("");
+			auto resMask = GetMask(mask);
+			auto key = t->get_as<std::string>("key").value_or("");
+			auto resKey = keyMap[key];
+			auto layout = t->get_as<std::string>("layout").value_or("");
+			auto resLayout = layoutMap[layout];
+			keys.push_back(Key(resMask, resKey, "SwitchMode", Argument(resLayout)));
+		}
+
+		//CMD
+		std::set<std::string> nullptrFuncs = {
+			"TogglePanel",
+			"NextWin",
+			"PrevWin",
+			"SwapMaster",
+			"MoveDown",
+			"MoveUp",
+			"PrevDesktop",
+			"ToggleFullscreenClient",
+			"KillClient",
+			"ToggleFloatClient",
+			"RestartMonitors",
+			"HideCurClient",
+			"HideAllClientOnDescktop",
+			"Restart",
+		};
+		auto keyTable = config->get_table_array("cmd_key");
+		for (const auto& t : *keyTable) {
+			auto mask = t->get_as<std::string>("mask").value_or("");
+			auto resMask = GetMask(mask);
+			auto key = t->get_as<std::string>("key").value_or("");
+			auto resKey = keyMap[key];
+			auto resFunc = t->get_as<std::string>("func").value_or("");
+			auto resArg = t->get_as<int>("arg").value_or(0);
+			if (resFunc != "") {
+				if (nullptrFuncs.find(resFunc) == nullptrFuncs.end()) {
+					keys.push_back(Key(resMask, resKey, resFunc, Argument(resArg)));
+				} else {
+					keys.push_back(Key(resMask, resKey, resFunc, Argument{nullptr}));
+				}
+			}
+		}
+
 	}
-
-
 };
 
 

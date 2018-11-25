@@ -10,7 +10,7 @@
 #include <X11/XKBlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xatom.h>
-#include <X11/extensions/Xinerama.h>
+#include <X11/extensions/Xrandr.h>
 #include <X11/Xft/Xft.h>
 
 #include "monitor.h"
@@ -21,19 +21,25 @@ enum { V_STACK_LEFT, V_STACK_RIGHT, H_STACK_UP, H_STACK_DOWN, MONOCLE, GRID, FLO
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
 enum { TITLE_UP, TITLE_DOWN, TITLE_LEFT, TITLE_RIGHT };
-
-
+#include <iostream>
 struct Argument {
-	std::vector<char*> com;
+	std::vector<std::string> com;
 	std::vector<int> intArr;
 	int i;
 	void *v;
 
 	Argument(int _i): i(_i){}
-	Argument(std::vector<char*> _com): com(_com){}
+	//Argument(std::vector<char*> &_com): com(_com){}
 	Argument(void *_v): v(_v){}
-	Argument(std::vector<int> _intArr): intArr(_intArr){}
+	Argument(std::vector<int> &_intArr): intArr(_intArr){}
 	Argument(){}
+	Argument(std::vector<std::string> &_com) {
+		for (auto i = 0; i < _com.size(); ++i) {
+			com.push_back(_com[i]);
+		}
+		//com.push_back(nullptr);
+		std::cout << com[0] << " $$\n";
+	}
 };
 
 typedef void (*KeyFunc)(const Argument *);
@@ -60,12 +66,12 @@ struct Button {
 };
 
 struct AppRule {
-	const char *appClass;
+	const std::string appClass;
 	const int monitor;
 	const int desktop;
 	const bool isFollow, isFloating;
 
-	AppRule(const char *appClass, const int monitor,
+	AppRule(const std::string appClass, const int monitor,
 		const int desktop,
 		const bool isFollow, const bool  isFloating): appClass(appClass), monitor(monitor), desktop(desktop), isFollow(isFollow), isFloating(isFloating){}
 };

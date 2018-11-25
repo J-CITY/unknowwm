@@ -1,6 +1,7 @@
 #ifndef WM_H
 #define WM_H
 
+#include "TCPServer.h"
 #include <memory>
 #include "config.h"
 #include <iostream>
@@ -9,6 +10,7 @@
 #define Length(x)       (sizeof(x)/sizeof(*x))
 
 class WindowManager {
+	TCPServer tcp;
 public:
 	typedef void (WindowManager::*ScriptFunction)(XEvent *e);
 	typedef void (WindowManager::*ModeFunction)(int x, int y, int w, int h, Desktop *d);
@@ -59,6 +61,10 @@ private:
 	void propertyNotify(XEvent *e);
 	void unmapNotify(XEvent *e);
 
+	void ParseStr(std::string instr);
+	void GetDockPipe();
+
+	void FocusWinById(const Argument *arg);
 	void RunFunc(std::string type, std::string funcStr, const Argument *arg);
 	void ToggleFullscreenClient(const Argument *arg);
 	void ToggleFloatClient(const Argument *arg);

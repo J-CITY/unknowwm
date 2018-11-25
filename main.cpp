@@ -4,12 +4,12 @@
 
 using std::unique_ptr;
 //#include "logger.h"
-const std::string VERSION = "v0.5";
+const std::string VERSION = "v0.6";
 
 
 void argParse(int argc, char** argv, std::string &configPath) {
 	if (argc == 2 && argv[1] == "-v") {
-		std::cout << VERSION << "\n";
+		std::cout << "UnknowWM: " << VERSION << "\n";
 		exit(0);
 	} else if (argc == 2 && argv[1] == "-h") {
 		//Logger::Log("version: %s", "0.1");

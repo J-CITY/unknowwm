@@ -42,10 +42,11 @@
 	AUTOFLOATING                  = false
 	NMASTER                       = 1
 
+	PIPE_WM_INFO = "/home/daniil/wminfo"
+	PIPE_DOCK_INFO = "/home/daniil/dockinfo"
+
 [[autostart]]
 	cmd = "/home/daniil/unknowwm/autorandr.sh"
-[[autostart]]
-	cmd = "feh"
 [[autostart]]
 	cmd = "feh --bg-scale /home/daniil/unknowwm/1.jpg"
 
@@ -71,3 +72,317 @@
 	desktop = 3
 	isfollow = true
 	isfloating = true
+
+
+[[cmd_move_restart]]
+	mask = "MOD4"
+	key = "KEY_J"
+	moveresize = [0,  25,   0,   0]
+[[cmd_move_restart]]
+	mask = "MOD4"
+	key = "KEY_K"
+	moveresize = [0,  -25,   0,   0]
+[[cmd_move_restart]]
+	mask = "MOD4"
+	key = "KEY_L"
+	moveresize = [25,  0,   0,   0]
+[[cmd_move_restart]]
+	mask = "MOD4"
+	key = "KEY_H"
+	moveresize = [-25,  0,   0,   0]
+
+[[cmd_move_restart]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_J"
+	moveresize = [0,  0,   0,   25]
+[[cmd_move_restart]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_K"
+	moveresize = [0,  0,   0,   -25]
+[[cmd_move_restart]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_L"
+	moveresize = [0,  0,   25,   0]
+[[cmd_move_restart]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_H"
+	moveresize = [0,  0,   -25,   0]
+
+[[cmd_run]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_RETURN"
+	cmd = "xfce4-terminal"
+
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_Q"
+	layout = "V_STACK_LEFT"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_W"
+	layout = "V_STACK_RIGHT"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_E"
+	layout = "H_STACK_UP"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_R"
+	layout = "H_STACK_DOWN"
+
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_T"
+	layout = "MONOCLE"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_Y"
+	layout = "GRID"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_U"
+	layout = "FLOAT"
+[[cmd_layout]]
+	mask = "MOD1"
+	key = "KEY_I"
+	layout = "FIBONACCI"
+
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_B"
+	func = "TogglePanel"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_C"
+	func = "KillClient"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_J"
+	func = "NextWin"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_K"
+	func = "PrevWin"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_RETURN"
+	func = "SwapMaster"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_K"
+	func = "MoveUp"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_J"
+	func = "MoveDown"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_TAB"
+	func = "PrevDesktop"
+	arg = 0
+[[cmd_key]]
+	mask = "CONTROL"
+	key = "KEY_M"
+	func = "ToggleFullscreenClient"
+	arg = 0
+[[cmd_key]]
+	mask = "CONTROL"
+	key = "KEY_F"
+	func = "ToggleFloatClient"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_C"
+	func = "HideCurClient"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_V"
+	func = "HideAllClientOnDescktop" 
+	arg = 0
+[[cmd_key]]
+	mask = "MOD4"
+	key = "KEY_G"
+	func = "Restart"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD4"
+	key = "KEY_F"
+	func = "RestartMonitors"
+	arg = 0
+	
+[[cmd_key]]
+	mask = "MOD1|CONTROL"
+	key = "KEY_R"
+	func = "Quit"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1|CONTROL"
+	key = "KEY_Q"
+	func = "Quit"
+	arg = 1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_H"
+	func = "ResizeMaster"
+	arg = -10
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_L"
+	func = "ResizeMaster"
+	arg = +10
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_O"
+	func =  "ResizeStack"
+	arg = -10
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_P"
+	func = "ResizeStack"
+	arg = +10
+[[cmd_key]]
+	mask = "MOD1|CONTROL"
+	key = "KEY_H"
+	func = "NextDesktop"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD1|CONTROL"
+	key = "KEY_L"
+	func = "NextDesktop"
+	arg = 1
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_H"
+	func =  "NextFilledDesktop"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_L"
+	func = "NextFilledDesktop"
+	arg = 1
+[[cmd_key]]
+	mask = "CONTROL"
+	key = "KEY_F2"
+	func = "ClientToDesktop"
+	arg = 2
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_PERIOD"
+	func = "ChangeDecorateBorder"
+	arg = +1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_COMMA"
+	func = "ChangeDecorateBorder"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_PERIOD"
+	func = "ChangeBorder"
+	arg = +1
+[[cmd_key]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_COMMA"
+	func = "ChangeBorder"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_PERIOD"
+	func = "ChangeGap"
+	arg = +1
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_COMMA"
+	func = "ChangeGap"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_Z"
+	func = "AddMaster"
+	arg = -1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_X"
+	func = "AddMaster"
+	arg = +1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_F"
+	func = "ChangeLayout"
+	arg = +1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_G"
+	func = "ChangeLayout"
+	arg = -1
+
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_F1"
+	func = "ChangeDesktop"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_F1"
+	func = "ClientToDesktop"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_F2"
+	func = "ChangeDesktop"
+	arg = 1
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_F2"
+	func = "ClientToDesktop"
+	arg = 1
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_F3"
+	func = "ChangeDesktop"
+	arg = 2
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_F3"
+	func = "ClientToDesktop"
+	arg = 2
+[[cmd_key]]
+	mask = "MOD1"
+	key = "KEY_F4"
+	func = "ChangeDesktop"
+	arg = 3
+[[cmd_key]]
+	mask = "MOD1|SHIFT"
+	key = "KEY_F4"
+	func = "ClientToDesktop"
+	arg = 3
+
+[[cmd_key]]
+	mask = "MOD4"
+	key = "KEY_F1"
+	func = "ChangeMonitor"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_F1"
+	func = "ClientToMonitor"
+	arg = 0
+[[cmd_key]]
+	mask = "MOD4"
+	key = "KEY_F2"
+	func = "ChangeMonitor"
+	arg = 1
+[[cmd_key]]
+	mask = "MOD4|SHIFT"
+	key = "KEY_F2"
+	func = "ClientToMonitor"
+	arg = 1
+
