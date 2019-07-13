@@ -4,3 +4,5 @@ log
 wm
 *.o
 .vscode
+.vscode/settings.json
+log
