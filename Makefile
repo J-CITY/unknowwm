@@ -17,7 +17,7 @@ LDFLAGS  = ${LIBS}
 GCC 	 = g++
 EXEC = ${WMNAME}
 
-SRC = ${WMNAME}.cpp main.cpp TCPServer.cpp TCPClient.cpp
+SRC = ${WMNAME}.cpp main.cpp
 OBJ = ${SRC:.c=.o}
 
 all: CFLAGS += -Os
@@ -31,7 +31,7 @@ debug: options ${WMNAME}
 	@echo GCC $<
 	@${GCC} -c ${CFLAGS} $<
 
-${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h TCPServer.h TCPClient.h
+${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h
 
 
 ${WMNAME}: ${OBJ}

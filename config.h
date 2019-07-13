@@ -97,7 +97,7 @@ public:
 
 	std::vector<int> initLayout       = {V_STACK_LEFT, V_STACK_RIGHT, GRID, -1, -1};
 	std::vector<int> layouts          = {V_STACK_LEFT, V_STACK_RIGHT, H_STACK_UP, 
-		                                 H_STACK_DOWN, MONOCLE, GRID, FIBONACCI, FLOAT};
+		                                 H_STACK_DOWN, MONOCLE, GRID, FIBONACCI, FLOAT, DOUBLE_STACK_VERTICAL};
 	std::map<int, std::vector<int>> desktopLayouts = {
 		{0, {V_STACK_LEFT, H_STACK_UP, FIBONACCI}},
 		{2, {GRID}},
@@ -303,7 +303,8 @@ public:
 			{ "GRID", GRID },
 			{ "FLOAT", FLOAT },
 			{ "FIBONACCI", FIBONACCI },
-			{ "MODES",MODES }
+			{ "MODES",MODES },
+			{ "DOUBLE_STACK_VERTICAL",DOUBLE_STACK_VERTICAL }
 		};
 		auto defModeKey = config->get_qualified_as<std::string>("main.DEFAULT_MODE").value_or("V_STACK_LEFT");
 		this->DEFAULT_MODE          = defMode[defModeKey];//Default layout for desktop
@@ -474,6 +475,7 @@ public:
 			{ "GRID", GRID }, 
 			{ "FLOAT", FLOAT }, 
 			{ "FIBONACCI", FIBONACCI }, 
+			{ "DOUBLE_STACK_VERTICAL", DOUBLE_STACK_VERTICAL }, 
 			{ "MODES", MODES } 
 		};
 		auto layoutTable = config->get_table_array("cmd_layout");

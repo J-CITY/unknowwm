@@ -38,6 +38,7 @@ void WindowManager::ParseStr(std::string instr) {
 			{ "GRID", GRID },
 			{ "FLOAT", FLOAT },
 			{ "FIBONACCI", FIBONACCI },
+			{ "DOUBLE_STACK_VERTICAL", DOUBLE_STACK_VERTICAL },
 			{ "MODES",MODES }
 		};
 		Argument arg(modeMap[strs[1]]);
@@ -2007,5 +2008,101 @@ void WindowManager::FibonacciMode(int x, int y, int w, int h, Desktop *d) {
 			x += config->USELESSGAP;
 		}
 		winCount--;
+	}
+}
+
+void WindowManager::DoubleStackVerticalMode(int x, int y, int w, int h, Desktop *d) {
+	int cw = w - config->BORDER_WIDTH - config->USELESSGAP*2;
+	int ch = h - config->BORDER_WIDTH - config->USELESSGAP*2;
+	std::vector<Client*> avalibleClients;
+	for (auto i = 0; i < d->clients.size(); ++i) {
+		if (!IsFloatOrFullscreen(d->clients[i])) {
+			avalibleClients.push_back(d->clients[i]);
+		}
+	}
+	if (!avalibleClients.size()) {
+		return;
+	}
+	x += config->USELESSGAP;
+	y += config->USELESSGAP;
+	if (avalibleClients.size() == 1) {
+		auto win = config->SHOW_DECORATE ? avalibleClients[0]->decorate : avalibleClients[0]->win;
+		if (config->SHOW_DECORATE && avalibleClients[0]->isDecorated) {
+			MoveResizeLocal(avalibleClients[0]->win, x, y, cw - config->BORDER_WIDTH, ch - config->USELESSGAP);
+		}
+		XMoveResizeWindow(display, win, x, y, cw - config->BORDER_WIDTH, ch - config->USELESSGAP);
+		return;
+	}
+	if (avalibleClients.size() == 2) {
+		auto win1 = config->SHOW_DECORATE ? avalibleClients[0]->decorate : avalibleClients[0]->win;
+		auto win2 = config->SHOW_DECORATE ? avalibleClients[1]->decorate : avalibleClients[1]->win;
+		if (config->SHOW_DECORATE && avalibleClients[0]->isDecorated) {
+			MoveResizeLocal(avalibleClients[0]->win, x, y, (cw - config->BORDER_WIDTH - config->USELESSGAP) / 2, (ch - config->USELESSGAP));
+		}
+		XMoveResizeWindow(display, win1, x, y, (cw - config->BORDER_WIDTH - config->USELESSGAP) / 2, (ch - config->USELESSGAP));
+
+		if (config->SHOW_DECORATE && avalibleClients[1]->isDecorated) {
+			MoveResizeLocal(avalibleClients[1]->win, x+(cw - config->BORDER_WIDTH) / 2 + config->USELESSGAP, 
+			y, 
+			(cw - config->BORDER_WIDTH - 2*config->USELESSGAP) / 2, (ch - config->USELESSGAP));
+		}
+		XMoveResizeWindow(display, win2, x+(cw - config->BORDER_WIDTH) / 2 + config->USELESSGAP, 
+			y, 
+			(cw - config->BORDER_WIDTH - 2*config->USELESSGAP) / 2, (ch - config->USELESSGAP));
+		return;
+	}
+	int masterSize = d->masterSize + cw / 3 - 2 * config->BORDER_WIDTH;
+	auto clientsSize = avalibleClients.size() - 1;
+	int clientsRSize = 0;
+	int clientsLSize = 0;
+	if (clientsSize % 2 == 0) {
+		clientsRSize = clientsLSize = clientsSize / 2;
+	} else {
+		clientsRSize = clientsSize / 2 + 1;
+		clientsLSize = clientsSize / 2;
+	}
+	auto rStackCount = 0;
+	auto lStackCount = 0;
+	Logger::isErr=true;
+	for (auto i = 0; i < avalibleClients.size(); ++i) {
+		auto win = config->SHOW_DECORATE ? avalibleClients[i]->decorate : avalibleClients[i]->win;
+		if (i == 0) {
+
+			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
+				MoveResizeLocal(avalibleClients[i]->win, (cw - masterSize) / 2 + 2*config->USELESSGAP, y, 
+					masterSize - config->USELESSGAP*2, (ch - config->BORDER_WIDTH));
+			}
+			XMoveResizeWindow(display, win, (cw - masterSize) / 2  + 2*config->USELESSGAP, y, 
+				masterSize - config->USELESSGAP*2, (ch - config->BORDER_WIDTH));
+			
+			continue;
+		}
+
+		auto leftOrRight = static_cast<bool>(i % 2);
+		
+		if (leftOrRight) { // right
+			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
+				MoveResizeLocal(avalibleClients[i]->win, masterSize + ((cw - masterSize) / 2) + config->USELESSGAP, 
+					y+ (((ch - config->BORDER_WIDTH) / clientsRSize)) * rStackCount, 
+					((cw - masterSize) / 2) - config->BORDER_WIDTH, ((ch - config->BORDER_WIDTH*clientsRSize - config->USELESSGAP*clientsRSize) / clientsRSize) - config->BORDER_WIDTH);
+			}
+			XMoveResizeWindow(display, win, masterSize + ((cw - masterSize) / 2) + config->USELESSGAP, 
+				y+ (((ch - config->BORDER_WIDTH) / clientsRSize)) * rStackCount, 
+				((cw - masterSize) / 2) - config->BORDER_WIDTH, ((ch - config->BORDER_WIDTH*clientsRSize - config->USELESSGAP*clientsRSize) / clientsRSize) - config->BORDER_WIDTH);
+			rStackCount++;
+		} else { // left
+			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
+				MoveResizeLocal(avalibleClients[i]->win, x, 
+					y + (((ch - config->BORDER_WIDTH) / clientsLSize)) * lStackCount, 
+					((cw - masterSize) / 2) - config->BORDER_WIDTH, 
+					((ch - config->BORDER_WIDTH*clientsLSize - config->USELESSGAP*clientsLSize) / clientsLSize) - config->BORDER_WIDTH);
+			}
+			XMoveResizeWindow(display, win, x, 
+				y + (((ch - config->BORDER_WIDTH) / clientsLSize)) * lStackCount, 
+				((cw - masterSize) / 2) - config->BORDER_WIDTH, 
+				((ch - config->BORDER_WIDTH*clientsLSize - config->USELESSGAP*clientsLSize) / clientsLSize) - config->BORDER_WIDTH);
+			lStackCount++;
+		}
+	
 	}
 }

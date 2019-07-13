@@ -1,7 +1,6 @@
 #ifndef WM_H
 #define WM_H
 
-#include "TCPServer.h"
 #include <memory>
 #include "config.h"
 #include <iostream>
@@ -10,7 +9,6 @@
 #define Length(x)       (sizeof(x)/sizeof(*x))
 
 class WindowManager {
-	TCPServer tcp;
 public:
 	typedef void (WindowManager::*ScriptFunction)(XEvent *e);
 	typedef void (WindowManager::*ModeFunction)(int x, int y, int w, int h, Desktop *d);
@@ -47,6 +45,7 @@ private:
 	void FloatMode(int x, int y, int w, int h, Desktop *d);
 	void StackMode(int x, int y, int w, int h, Desktop *d);
 	void FibonacciMode(int x, int y, int w, int h, Desktop *d);
+	void DoubleStackVerticalMode(int x, int y, int w, int h, Desktop *d);
 	static void Sigchld(int sig);
 	void Tile(Desktop *d, Monitor *m);
 
@@ -249,14 +248,15 @@ private:
 	};
 
 	std::map<int, ModeFunction> layout = {
-		{V_STACK_LEFT, &WindowManager::StackMode},
-		{V_STACK_RIGHT,&WindowManager::StackMode},
-		{H_STACK_UP,   &WindowManager::StackMode},
-		{H_STACK_DOWN, &WindowManager::StackMode},
-		{GRID,         &WindowManager::GridMode},
-		{MONOCLE,      &WindowManager::MonocleMode},
-		{FIBONACCI,    &WindowManager::FibonacciMode},
-		{FLOAT,        &WindowManager::FloatMode}
+		{V_STACK_LEFT,         &WindowManager::StackMode},
+		{V_STACK_RIGHT,        &WindowManager::StackMode},
+		{H_STACK_UP,           &WindowManager::StackMode},
+		{H_STACK_DOWN,         &WindowManager::StackMode},
+		{GRID,                 &WindowManager::GridMode},
+		{MONOCLE,              &WindowManager::MonocleMode},
+		{FIBONACCI,            &WindowManager::FibonacciMode},
+		{FLOAT,                &WindowManager::FloatMode},
+		{DOUBLE_STACK_VERTICAL, &WindowManager::DoubleStackVerticalMode}
 	};
 	
 	std::map<std::string, ActionFunction> runFuncMap = {

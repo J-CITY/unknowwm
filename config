@@ -24,12 +24,12 @@
 	FOLLOW_MOUSE          = false          #focus the window the mouse just entered
 	CLICK_TO_FOCUS        = true           #focus an unfocused window when clicked
 	FOCUS_BUTTON          = "LEFT"         #LEFT/RIGHT/MIDDLEmouse button to be used along with CLICK_TO_FOCUS
-	FOCUS_COLOR           = "#4A724E"
-	UNFOCUS_COLOR         = "#3B6B71"
-	INFOCUS_COLOR         = "#654D47"
-	DECORATE_FOCUS_COLOR  = "#3B6B71"
-	DECORATE_UNFOCUS_COLOR= "#213846"
-	DECORATE_INFOCUS_COLOR= "#213846"
+	FOCUS_COLOR           = "#D0785D"
+	UNFOCUS_COLOR         = "#4B3B51"
+	INFOCUS_COLOR         = "#4B3B51"
+	DECORATE_FOCUS_COLOR  = "#4B3B51"
+	DECORATE_UNFOCUS_COLOR= "#4B3B51"
+	DECORATE_INFOCUS_COLOR= "#4B3B51"
 	TITLE_TEXT_COLOR      = "#ffffff"
 
 	TITLE_DX              = 5
@@ -45,8 +45,8 @@
 	PIPE_WM_INFO = "/home/daniil/wminfo"
 	PIPE_DOCK_INFO = "/home/daniil/dockinfo"
 
-[[autostart]]
-	cmd = "/home/daniil/unknowwm/autorandr.sh"
+#[[autostart]]
+#	cmd = "/home/daniil/unknowwm/autorandr.sh"
 [[autostart]]
 	cmd = "feh --bg-scale /home/daniil/unknowwm/1.jpg"
 
@@ -121,14 +121,14 @@
 	mask = "MOD1"
 	key = "KEY_W"
 	layout = "V_STACK_RIGHT"
-[[cmd_layout]]
-	mask = "MOD1"
-	key = "KEY_E"
-	layout = "H_STACK_UP"
-[[cmd_layout]]
-	mask = "MOD1"
-	key = "KEY_R"
-	layout = "H_STACK_DOWN"
+#[[cmd_layout]]
+#	mask = "MOD1"
+#	key = "KEY_E"
+#	layout = "H_STACK_UP"
+#[[cmd_layout]]
+#	mask = "MOD1"
+#	key = "KEY_R"
+#	layout = "H_STACK_DOWN"
 
 [[cmd_layout]]
 	mask = "MOD1"
@@ -137,15 +137,15 @@
 [[cmd_layout]]
 	mask = "MOD1"
 	key = "KEY_Y"
-	layout = "GRID"
+	layout = "DOUBLE_STACK_VERTICAL"
 [[cmd_layout]]
 	mask = "MOD1"
 	key = "KEY_U"
 	layout = "FLOAT"
-[[cmd_layout]]
-	mask = "MOD1"
-	key = "KEY_I"
-	layout = "FIBONACCI"
+#[[cmd_layout]]
+#	mask = "MOD1"
+#	key = "KEY_I"
+#	layout = "FIBONACCI"
 
 [[cmd_key]]
 	mask = "MOD1"
@@ -194,7 +194,7 @@
 	arg = 0
 [[cmd_key]]
 	mask = "CONTROL"
-	key = "KEY_F"
+	key = "KEY_L"
 	func = "ToggleFloatClient"
 	arg = 0
 [[cmd_key]]
@@ -211,13 +211,7 @@
 	mask = "MOD4"
 	key = "KEY_G"
 	func = "Restart"
-	arg = 0
-[[cmd_key]]
-	mask = "MOD4"
-	key = "KEY_F"
-	func = "RestartMonitors"
-	arg = 0
-	
+	arg = 0	
 [[cmd_key]]
 	mask = "MOD1|CONTROL"
 	key = "KEY_R"
