@@ -57,9 +57,11 @@ See config.h to get information about wn shortcuts.
 
 # TODO
 
-* Custom user config
-* Bar panel
-* Change font for title
+* Add action on decorate window
+* Add PIPE and remove write to file
+* Add reload config func and reinit monitors and desktops
+* Check client`s monitor when it move
+* Refactor
 
 # Thanks
 
