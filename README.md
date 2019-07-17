@@ -43,7 +43,74 @@ Name[ru_RU.utf8]=unknowwm
 
 # Usage
 
-See config.h to get information about wn shortcuts.
+You can configurate your shortcuts in config file
+
+Support commands:
+
+cmd_move_resize - move or resize window
+
+cmd_run - run shell cmd
+
+cmd_layout - set lyaout mode V_STACK_LEFT | V_STACK_RIGHT | H_STACK_UP | H_STACK_DOWN | MONOCLE | DOUBLE_STACK_VERTICAL | FLOAT | FIBONACCI
+
+cmd_key - other options which you can use with shortcuts
+TogglePanel - toggle place for bar
+
+KillClient
+
+NextWin
+
+PrevWin
+
+SwapMaster - swap current client with master
+	
+MoveUp - move client up in stack
+	
+MoveDown  - move client down in stack
+
+PrevDesktop
+
+ToggleFullscreenClient - set window in fullscreen mode
+
+ToggleFloatClient - set window in floating mode
+
+HideCurClient
+
+HideAllClientOnDescktop 
+
+Quit
+
+ResizeMaster
+
+ResizeStack
+
+NextDesktop
+
+NextDesktop
+
+NextFilledDesktop
+
+NextFilledDesktop
+
+ClientToDesktop
+
+ChangeDecorateBorder - change 2nd border size
+
+ChangeBorder - change 1st border size
+
+ChangeGap - cahnge gaps
+
+AddMaster - add second master window
+
+ChangeLayout
+
+ChangeDesktop
+
+ClientToDesktop
+
+for more informations about function params see config file
+
+
 
 # Features
 
