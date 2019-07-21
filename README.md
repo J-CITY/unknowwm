@@ -121,13 +121,13 @@ for more informations about function params see config file
 * Tailing modes stack (left, right, top, bottom), grid, fibonacci, fullscreen, floating
 * Autostart rules
 * Rules for special apps
+* Actions /close/hide/fullscreen on title press
 
 # TODO
 
-* Add action on decorate window
 * Add PIPE and remove write to file
-* Add reload config func and reinit monitors and desktops
-* Check client`s monitor when it move
+* Add reload config func and reinit monitors and desktops (test it)
+* Check client`s monitor when it move (test it)
 * Refactor
 
 # Thanks
