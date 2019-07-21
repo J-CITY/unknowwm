@@ -1,7 +1,6 @@
 #ifndef WM_H
 #define WM_H
 
-#include "TCPServer.h"
 #include <memory>
 #include "config.h"
 #include <iostream>
@@ -10,7 +9,6 @@
 #define Length(x)       (sizeof(x)/sizeof(*x))
 
 class WindowManager {
-	TCPServer tcp;
 public:
 	typedef void (WindowManager::*ScriptFunction)(XEvent *e);
 	typedef void (WindowManager::*ModeFunction)(int x, int y, int w, int h, Desktop *d);
@@ -40,17 +38,19 @@ private:
 	void GrabButtons(Client *c);
 	void GrabKeys();
 	void RemoveClient(Client *c, Desktop *d, Monitor *m);
-	bool WinToClient(Window w, Client **c, Desktop **d, Monitor **m);
+	bool WinToClient(Window w, Client **c, Desktop **d, Monitor **m, bool isTitle=false);
 	void GridMode(int x, int y, int w, int h, Desktop *d);
 	void MonocleMode(int x, int y, int w, int h, Desktop *d);
 	void FullscreenMode(Client *c, Desktop *d, Monitor *m, bool fullscrn);
 	void FloatMode(int x, int y, int w, int h, Desktop *d);
 	void StackMode(int x, int y, int w, int h, Desktop *d);
 	void FibonacciMode(int x, int y, int w, int h, Desktop *d);
+	void DoubleStackVerticalMode(int x, int y, int w, int h, Desktop *d);
 	static void Sigchld(int sig);
 	void Tile(Desktop *d, Monitor *m);
 
 	void buttonPress(XEvent *e);
+	void buttonPressTitle(XEvent *e);
 	void configureRequest(XEvent *e);
 	void clientMessage(XEvent *e);
 	void destroyNotify(XEvent *e);
@@ -91,6 +91,15 @@ private:
 	void SwitchMode(const Argument *arg);
 	void RestartMonitors(const Argument *arg);
 	void Restart(const Argument *arg);
+
+	void ReloadConfig(const Argument *arg) {
+		config->InitDefault();
+		if (arg->com[0] != "") {
+			config->Parse(arg->com[0]);
+		}
+		Argument dummyArg(0);
+		RestartMonitors(&dummyArg);
+	}
 
 	inline unsigned int RootMask() {
 		return SubstructureRedirectMask |
@@ -249,14 +258,15 @@ private:
 	};
 
 	std::map<int, ModeFunction> layout = {
-		{V_STACK_LEFT, &WindowManager::StackMode},
-		{V_STACK_RIGHT,&WindowManager::StackMode},
-		{H_STACK_UP,   &WindowManager::StackMode},
-		{H_STACK_DOWN, &WindowManager::StackMode},
-		{GRID,         &WindowManager::GridMode},
-		{MONOCLE,      &WindowManager::MonocleMode},
-		{FIBONACCI,    &WindowManager::FibonacciMode},
-		{FLOAT,        &WindowManager::FloatMode}
+		{V_STACK_LEFT,         &WindowManager::StackMode},
+		{V_STACK_RIGHT,        &WindowManager::StackMode},
+		{H_STACK_UP,           &WindowManager::StackMode},
+		{H_STACK_DOWN,         &WindowManager::StackMode},
+		{GRID,                 &WindowManager::GridMode},
+		{MONOCLE,              &WindowManager::MonocleMode},
+		{FIBONACCI,            &WindowManager::FibonacciMode},
+		{FLOAT,                &WindowManager::FloatMode},
+		{DOUBLE_STACK_VERTICAL, &WindowManager::DoubleStackVerticalMode}
 	};
 	
 	std::map<std::string, ActionFunction> runFuncMap = {
