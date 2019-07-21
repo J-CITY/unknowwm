@@ -22,7 +22,7 @@ void argParse(int argc, char** argv, std::string &configPath) {
 }
 
 int main(int argc, char** argv) {
-	std::string configPath = "/home/daniil/unknowwm/config";
+	std::string configPath = "/home/daniil/Documents/unknowwm/config";
 	argParse(argc, argv, configPath);
 	Config *config = new Config(configPath);
 	unique_ptr<WindowManager> windowManager(WindowManager::Create());

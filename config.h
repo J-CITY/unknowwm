@@ -435,7 +435,7 @@ public:
 
 
 		//move resize
-		auto moveResizeTable = config->get_table_array("cmd_move_restart");
+		auto moveResizeTable = config->get_table_array("cmd_move_resize");
 		for (const auto& t : *moveResizeTable) {
 			auto mask = t->get_as<std::string>("mask").value_or("");
 			auto resMask = GetMask(mask);

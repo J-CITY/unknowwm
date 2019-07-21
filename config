@@ -75,36 +75,36 @@
 	isfloating = true
 
 
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4"
 	key = "KEY_J"
 	moveresize = [0,  25,   0,   0]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4"
 	key = "KEY_K"
 	moveresize = [0,  -25,   0,   0]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4"
 	key = "KEY_L"
 	moveresize = [25,  0,   0,   0]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4"
 	key = "KEY_H"
 	moveresize = [-25,  0,   0,   0]
 
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4|SHIFT"
 	key = "KEY_J"
 	moveresize = [0,  0,   0,   25]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4|SHIFT"
 	key = "KEY_K"
 	moveresize = [0,  0,   0,   -25]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4|SHIFT"
 	key = "KEY_L"
 	moveresize = [0,  0,   25,   0]
-[[cmd_move_restart]]
+[[cmd_move_resize]]
 	mask = "MOD4|SHIFT"
 	key = "KEY_H"
 	moveresize = [0,  0,   -25,   0]
