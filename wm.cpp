@@ -2,96 +2,23 @@
 UNKNOWN WM
 */
 
-#include "wm.h"
 #include <unistd.h>
-#include "logger.h"
 #include <algorithm>
 #include <unistd.h>
 #include <thread>
+#include <iterator>
 
-void WindowManager::ParseStr(std::string instr) {
-	std::vector<std::string> strs;
-	std::stringstream test(instr);
-	std::string segment;
-	while(std::getline(test, segment, ':')) {
-		strs.push_back(segment);
-	}
-	if (strs.size() != 2) {
-		return;
-	}
-	if (strs[0] == "monitor") {
-		Argument arg(std::stoi(strs[1]));
-		ChangeMonitor(&arg);
-	} else if (strs[0] == "desktop") {
-		Argument arg(std::stoi(strs[1]));
-		ChangeDesktop(&arg);
-	} else if (strs[0] == "client") {
-		Argument arg(std::stoi(strs[1]));
-		FocusWinById(&arg);
-	} else if (strs[0] == "mode") {
-		std::map <std::string, int> modeMap = {
-			{ "V_STACK_LEFT", V_STACK_LEFT },
-			{ "V_STACK_RIGHT", V_STACK_RIGHT },
-			{ "H_STACK_UP", H_STACK_UP },
-			{ "H_STACK_DOWN", H_STACK_DOWN },
-			{ "MONOCLE", MONOCLE },
-			{ "GRID", GRID },
-			{ "FLOAT", FLOAT },
-			{ "FIBONACCI", FIBONACCI },
-			{ "DOUBLE_STACK_VERTICAL", DOUBLE_STACK_VERTICAL },
-			{ "MODES",MODES }
-		};
-		Argument arg(modeMap[strs[1]]);
-		SwitchMode(&arg);
-	}
+#include "wm.h"
 
-	return;
-}
+using namespace UW;
 
-void WindowManager::GetDockPipe() {
-	while (true) {
-		if (config->PIPE_DOCK_INFO == "") {
-			return;
-		}
-		std::string line;
-		std::ifstream in(config->PIPE_DOCK_INFO);
-		std::cout << "##\n";
-		if (in.is_open()) {
-			std::cout << "%%\n";
-			while (std::getline(in, line)) {
-				//ParseStr(line);
-				std::cout << "&&"<<line << std::endl;
-			}
-			std::cout << "**\n";
-		}
-		std::cout << "!!\n";
-		in.close();
-		std::cout << "!!!\n";
-		/*auto BUZZ_SIZE = 1024;
-		char buff[BUZZ_SIZE];
-		FILE *f = fopen(config->PIPE_DOCK_INFO.c_str(), "r");
-		std::cout <<config->PIPE_DOCK_INFO.c_str()<< "@@\n";
-		
-		if (f) {
-			std::cout << "%%\n";
-		
-			fgets(buff, BUZZ_SIZE, f);
-			std::string s = buff;
-			ParseStr(s);
-			std::cout << "String read: " << buff << "\n";
-			std::cout << "**\n";
-		
-		}
-		fclose(f);*/
-		
-		usleep(100);
-	}
-}
+#define LERR SomeLogger::Logger::Instance().log(SomeLogger::LoggerLevel::ERR)
+#define LINFO SomeLogger::Logger::Instance().log(SomeLogger::LoggerLevel::INFO)
 
 std::unique_ptr<WindowManager> WindowManager::Create() {
 	Display* display = XOpenDisplay(nullptr);
 	if (display == nullptr) {
-		Logger::Err("Failed to open display");
+		LERR << "Failed to open display\n";
 		return nullptr;
 	}
 	return std::unique_ptr<WindowManager>(new WindowManager(display));
@@ -100,91 +27,28 @@ std::unique_ptr<WindowManager> WindowManager::Create() {
 WindowManager::WindowManager(Display* display): display(display) {
 }
 
-Client* WindowManager::AddWindow(Window w, Desktop *d) {
-	/*std::string title = "";
-	XTextProperty name;
-	XGetTextProperty(display, w, &name, XA_WM_NAME);
-	if (name.nitems && name.encoding == XA_STRING) {
-		title = (char*)name.value;
-	}
-	if (name.value) {
-		XFree(name.value);
-	}
-	
-	auto it = std::find(config->ignoreApps.begin(), config->ignoreApps.end(), title);
-	bool isIgnoreWin = false;
-	if (it != config->ignoreApps.end()) {
-		isIgnoreWin = true;
-	}
-*/
-	Client *c = new Client;
-	//if (isIgnoreWin) c->isIgnore = true;
-	//c->title = title;
-	if (d->clients.size() == 0) {
-		c->id = 0;
-		d->clients.push_back(c);
-		d->curClientId = 0;
-		d->prevClientId = 0;
-	} else if (!config->ATTACH_ASIDE) {
-		d->clients.insert(d->clients.begin(), c);
-		c->id = 0;
-		d->curClientId = 0;
-		for (auto i = 0; i < d->clients.size(); i++) {
-			d->clients[i]->id = i;
-		}
-	} else {
-		c->id = d->clients.size();
-		d->clients.push_back(c);
-		d->curClientId = c->id;
-	}
+Client* WindowManager::addWindow(Window w, Desktop* d) {
+	auto cUniq = std::make_unique<Client>();
+	auto c = d->addClient(std::move(cUniq), *config);
 	c->win = w;
 	if (config->SHOW_DECORATE) {
-		c->decorate = XCreateSimpleWindow(display, rootWin, 0, 0, 100, 100, config->BORDER_WIDTH,
-			                              winFocus, decorateWinFocus);
-		c->isDecorated = true;
-		XWindowAttributes wa;
-		if (XGetWindowAttributes(display, c->win, &wa)) {
-			auto _w = wa.width;
-			auto _h = wa.height;
-			XMoveResizeWindow(display, c->decorate, wa.x, wa.y, wa.width, wa.height);
-			MoveResizeLocal(c->win, wa.x, wa.y, wa.width, wa.height);
-			
-			XWindowAttributes testWa;
-			XGetWindowAttributes(display, c->win, &testWa);
-			if (_w -2*(config->DECORATE_BORDER_WIDTH)- 2*(config->BORDER_WIDTH)- ((config->SHOW_TITLE && (config->TITLE_POSITION == TITLE_RIGHT || config->TITLE_POSITION == TITLE_LEFT)) ? config->TITLE_HEIGHT:0) < testWa.width || 
-				_h -2*(config->DECORATE_BORDER_WIDTH)- 2*(config->BORDER_WIDTH)- ((config->SHOW_TITLE && (config->TITLE_POSITION == TITLE_UP || config->TITLE_POSITION == TITLE_DOWN)) ? config->TITLE_HEIGHT:0)  < testWa.height) {
-				//XMoveResizeWindow(display, c->decorate, testWa.x, wa.y, wa.width, wa.height);
-
-				int titleup = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP) ? config->TITLE_HEIGHT:0;
-				int titledown = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_DOWN) ? config->TITLE_HEIGHT:0;
-				int titleleft = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_LEFT) ? config->TITLE_HEIGHT:0;
-				int titleright = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_RIGHT) ? config->TITLE_HEIGHT:0;
-				int titleh = config->SHOW_TITLE ? config->TITLE_HEIGHT:0;
-				XMoveResizeWindow(display, c->decorate, 
-					testWa.x - config->BORDER_WIDTH - config->DECORATE_BORDER_WIDTH - titleleft, 
-					testWa.y - config->BORDER_WIDTH - config->DECORATE_BORDER_WIDTH - titleup, 
-					testWa.width+2*(config->DECORATE_BORDER_WIDTH) + ((titleright || titleleft)?titleh:0), 
-					testWa.height+2*(config->DECORATE_BORDER_WIDTH) + ((titleup || titledown)?titleh:0));
-
-
-			}
-		}
+		c->decorateWin(display, rootWin, *config, winFocus, decorateWinFocus);
 	}
 	XSelectInput(display, c->win, 
-		         PropertyChangeMask | FocusChangeMask | (config->FOLLOW_MOUSE?EnterWindowMask:0));
+		PropertyChangeMask | FocusChangeMask | (config->FOLLOW_MOUSE ? EnterWindowMask : 0));
 	return c;
 }
 
-void WindowManager::ChangeLayout(const Argument *arg) {
-	Monitor *m =  monitors[monitorId];
-	Desktop *d = m->desktops[monitors[monitorId]->desktopCurId];
+void WindowManager::changeLayout(const Argument *arg) {
+	Monitor *m =  monitors[monitorId].get();
+	Desktop *d = m->desktops[monitors[monitorId]->desktopCurId].get();
 	auto ls = config->layouts;
 	if (config->desktopLayouts.find(monitors[monitorId]->desktopCurId) != config->desktopLayouts.end()) {
 		ls = config->desktopLayouts[monitors[monitorId]->desktopCurId];
 	}
 	d->layoutId = ((d->layoutId + arg->i) < 0 ? ls.size()-1 : (d->layoutId + arg->i)) % ls.size();
 	Argument _arg(ls[d->layoutId]);
-	SwitchMode(&_arg);
+	switchMode(&_arg);
 }
 
 void WindowManager::buttonPress(XEvent *e) {
@@ -192,32 +56,32 @@ void WindowManager::buttonPress(XEvent *e) {
 	Desktop *d = nullptr;
 	Client *c = nullptr;
 
-	Bool w = WinToClient(e->xbutton.window, &c, &d, &m);
+	bool w = winToClient(e->xbutton.window, &c, &d, &m);
 	int cm = 0; 
-	while(m != monitors[cm] && cm < monitorCount) {
+	while(m != monitors[cm].get() && cm < monitorCount) {
 		cm++;
 	}
 	if (w && config->CLICK_TO_FOCUS && e->xbutton.button == config->FOCUS_BUTTON && 
-		(c != d->GetCur()|| cm != monitorId)) {
+		(c != d->getCur()|| cm != monitorId)) {
 		if (cm != monitorId) {
 			Argument _arg;
 			_arg.i = cm;
-			ChangeMonitor(&_arg);
+			changeMonitor(&_arg);
 		}
-		Focus(c, d, m);
+		focus(c, d, m);
 	}
 	for (unsigned int i = 0; i < config->buttons.size(); i++) {
-		if (CleanMask(config->buttons[i].mask) == CleanMask(e->xbutton.state) &&
+		if (cleanMask(config->buttons[i].mask) == cleanMask(e->xbutton.state) &&
 			config->buttons[i].func != "" && config->buttons[i].button == e->xbutton.button) {
 			if (w && cm != monitorId) {
 				Argument _arg;
 				_arg.i = cm;
-				ChangeMonitor(&_arg);
+				changeMonitor(&_arg);
 			}
-			if (w && c != d->GetCur()) {
-				Focus(c, d, m);
+			if (w && c != d->getCur()) {
+				focus(c, d, m);
 			}
-			RunFunc("button", config->buttons[i].func, &(config->buttons[i].arg));
+			runFunc("button", config->buttons[i].func, &(config->buttons[i].arg));
 		}
 	}
 	if (config->SHOW_DECORATE && config->USE_TITLE_BUTTON_ACTIONS) {
@@ -230,137 +94,112 @@ void WindowManager::buttonPressTitle(XEvent *e) {
 	Desktop *d = nullptr;
 	Client *c = nullptr;
 
-	bool w = WinToClient(e->xbutton.subwindow, &c, &d, &m, true);
+	bool w = winToClient(e->xbutton.subwindow, &c, &d, &m, true);
 			
 	if (w && config->USE_TITLE_BUTTON_ACTIONS) {
 		int cm = 0; 
-		while(m != monitors[cm] && cm < monitorCount) {
+		while(m != monitors[cm].get() && cm < monitorCount) {
 			cm++;
 		}
 		if (cm != monitorId) {
 			Argument _arg;
 			_arg.i = cm;
-			ChangeMonitor(&_arg);
+			changeMonitor(&_arg);
 		}
-		Focus(c, d, m);
+		focus(c, d, m);
 
 		Argument arg(0);
 		if (e->xbutton.button == Button1) {
-			ToggleFullscreenClient(&arg);
+			toggleFullscreenClient(&arg);
 		} else if (e->xbutton.button == Button3) {
-			KillClient(&arg);
+			killClient(&arg);
 		} else if (e->xbutton.button == Button2) {
-			HideCurClient(&arg);
+			hideCurClient(&arg);
 		}
 	}
 }
 
-void WindowManager::ChangeDesktop(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
+void WindowManager::changeDesktop(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
 
 	if (arg->i == m->desktopCurId || arg->i < 0 || arg->i >= config->DESKTOPS) {
 		return;
 	}
 
-	Desktop *d = m->desktops[(m->desktopPrevId = m->desktopCurId)];
-	Desktop *n = m->desktops[(m->desktopCurId = arg->i)];
-	auto _d = n->GetCur();
-	if (_d != nullptr){
-		if (config->SHOW_DECORATE && _d->isDecorated) {
-			XMapWindow(display, _d->decorate);
-		}
-		XMapWindow(display, _d->win);
-	}
-	for (auto c = n->clients.begin(); c != n->clients.end(); c++) {
-		(*c)->isUnmap = false;
-		if (config->SHOW_DECORATE && (*c)->isDecorated) {
-			XMapWindow(display, (*c)->decorate);
-		}
-		XMapWindow(display, (*c)->win);
-	}
+	Desktop *d = m->desktops[(m->desktopPrevId = m->desktopCurId)].get();
+	Desktop *n = m->desktops[(m->desktopCurId = arg->i)].get();
+	
+	n->mapAll(*config, display);
+
 	XSetWindowAttributes attr1;
 	attr1.do_not_propagate_mask = SubstructureNotifyMask;
 	XChangeWindowAttributes(display, rootWin, CWEventMask, &attr1);
-	for (auto c = d->clients.begin(); c != d->clients.end(); c++) {
-		(*c)->isUnmap = true;
-		if (*c != (d->GetCur())) {
-			if (config->SHOW_DECORATE && (*c)->isDecorated) {
-				XUnmapWindow(display, (*c)->decorate);
-			}
-			XUnmapWindow(display, (*c)->win);
-		}
-	}
-	if (d->GetCur() != nullptr) {
-		if (config->SHOW_DECORATE && d->GetCur()->isDecorated) {
-			XUnmapWindow(display, d->GetCur()->decorate);
-		}
-		XUnmapWindow(display, d->GetCur()->win);
-	}
+
+	d->unmapAll(*config, display);
+
 	XSetWindowAttributes attr2;
-	attr2.event_mask = RootMask();
+	attr2.event_mask = rootMask();
 	XChangeWindowAttributes(display, rootWin, CWEventMask, &attr2);
 
-	if (n->GetCur() != nullptr) { 
-		Tile(n, m);
-		Focus(n->GetCur(), n, m);
+	if (n->getCur() != nullptr) { 
+		tile(n, m);
+		focus(n->getCur(), n, m);
 	}
-	Logger::Log("CHANGE DESKTOP!!!n");
-	DesktopInfo();
+	
+	desktopInfo();
 }
 
-void WindowManager::ChangeMonitor(const Argument *arg) {
+void WindowManager::changeMonitor(const Argument *arg) {
 	if (arg->i == monitorId || arg->i < 0 || arg->i >= monitorCount) {
 		return;
 	}
-	Monitor *m = monitors[monitorId];
+	Monitor *m = monitors[monitorId].get();
 	monitorId = arg->i;
-	Monitor *n = monitors[monitorId];
-	Client *mClient = m->desktops[m->desktopCurId]->GetCur();
-	Client *nClient = n->desktops[n->desktopCurId]->GetCur();
-	Focus(mClient, m->desktops[m->desktopCurId], m);
-	Focus(nClient, n->desktops[n->desktopCurId], n);
-	DesktopInfo();
+	Monitor *n = monitors[monitorId].get();
+	Client *mClient = m->desktops[m->desktopCurId]->getCur();
+	Client *nClient = n->desktops[n->desktopCurId]->getCur();
+	focus(mClient, m->desktops[m->desktopCurId].get(), m);
+	focus(nClient, n->desktops[n->desktopCurId].get(), n);
+	desktopInfo();
 }
 
-void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
-	if (!d->GetHead() || !c) {
+void WindowManager::focus(Client *c, Desktop *d, Monitor *m) {
+	if (!d->getHead() || !c) {
 		XDeleteProperty(display, rootWin, netatoms[NET_ACTIVE]);
 		d->curClientId = -1;
 		d->clients.clear();
 		return;
-	} else if (d->GetCur() != c) {
-		d->prevClientId = d->GetCur() ? d->GetCur()->id : -1; 
+	} else if (d->getCur() != c) {
+		d->prevClientId = d->getCur() ? d->getCur()->id : -1; 
 		d->curClientId = c->id;
 	}
-	int n = 0, fl = 0, ft = 0;
-	for (auto _c = d->clients.begin(); _c != d->clients.end(); _c++, n++) {
-		if (IsFloatOrFullscreen(*_c)) {
+	int n = d->clients.size(), fl = 0, ft = 0;
+	for (auto& _c : d->clients) {
+		if (isFloatOrFullscreen(_c.get())) {
 			fl++;
-			if (!(*_c)->isFull) {
+			if (!_c->isFull) {
 				ft++;
 			}
 		}
 	}
 	
+
 	int scale = config->SHOW_DECORATE ? 2 : 1;
 	Window w[n*scale];
-	auto _id = (d->GetCur()->isFloat || d->GetCur()->isTrans) ? 0 : ft;
-	w[_id*scale] = d->GetCur()->win;
+	auto _id = (d->getCur()->isFloat || d->getCur()->isTrans) ? 0 : ft;
+	w[_id*scale] = d->getCur()->win;
 	if (config->SHOW_DECORATE) {
-		w[_id*scale+1] = d->GetCur()->decorate;
+		w[_id*scale+1] = d->getCur()->decorate;
 	}
-	fl += !IsFloatOrFullscreen(d->GetPrev()) ? 1 : 0;
 	
-	for (auto _c = d->clients.begin(); _c != d->clients.end(); _c++) {
-		auto win = config->SHOW_DECORATE && (*_c)->isDecorated ? (*_c)->decorate : (*_c)->win;
+	fl += !isFloatOrFullscreen(d->getPrev()) ? 1 : 0;
+
+	for (auto& _c : d->clients) {
+		auto win = config->SHOW_DECORATE && _c->isDecorated ? _c->decorate : _c->win;
 		if (config->SHOW_DECORATE) {
-			//XClearWindow(display, win);
 			XSetWindowBackground(display, win, 
-				                 ((*_c) != d->GetCur()) ? 
-				                 decorateWinUnfocus : 
-				                 (m == monitors[monitorId]) ? 
-				                 decorateWinFocus : 
-				                 decorateWinInfocus);
+				(_c.get() != d->getCur()) ? decorateWinUnfocus : 
+					(m == monitors[monitorId].get()) ? decorateWinFocus : decorateWinInfocus);
 			XClearWindow(display, win);
 
 			XftColor msgcolor;
@@ -375,8 +214,8 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 			
 			if (config->TITLE_POSITION == TITLE_UP) {
 				XftDrawString8(draw, &msgcolor, msgfont, config->TITLE_DX, config->TITLE_DY, 
-					(XftChar8*)(*_c)->title.c_str(), 
-					(*_c)->title.size());
+					(XftChar8*)(_c->title.c_str()), 
+					_c->title.size());
 			}
 			if (config->TITLE_POSITION == TITLE_DOWN) {
 				XWindowAttributes wa;
@@ -384,16 +223,16 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 					XftDrawString8(draw, &msgcolor, msgfont, 
 						config->TITLE_DX, 
 						wa.height-config->TITLE_DY, 
-						(XftChar8*)(*_c)->title.c_str(), 
-						(*_c)->title.size());
+						(XftChar8*)(_c->title.c_str()), 
+						_c->title.size());
 				}
 				
 			}
 			if (config->TITLE_POSITION == TITLE_LEFT) {
 				XWindowAttributes wa;
 				if (XGetWindowAttributes(display, win, &wa)) {
-					for (auto i = 0; i < (*_c)->title.size(); ++i) {
-						std::string s(1, (*_c)->title[i]);
+					for (auto i = 0; i < _c->title.size(); ++i) {
+						std::string s(1, _c->title[i]);
 						XftDrawString8(draw, &msgcolor, msgfont, 
 							config->TITLE_DX, 
 							config->TITLE_DY + i*msgfont->height, 
@@ -405,8 +244,8 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 			if (config->TITLE_POSITION == TITLE_RIGHT) {
 				XWindowAttributes wa;
 				if (XGetWindowAttributes(display, win, &wa)) {
-					for (auto i = 0; i < (*_c)->title.size(); ++i) {
-						std::string s(1, (*_c)->title[i]);
+					for (auto i = 0; i < _c->title.size(); ++i) {
+						std::string s(1, _c->title[i]);
 						XftDrawString8(draw, &msgcolor, msgfont, 
 							wa.width-config->TITLE_DX, 
 							config->TITLE_DY + i*msgfont->height, 
@@ -476,67 +315,66 @@ void WindowManager::Focus(Client *c, Desktop *d, Monitor *m) {
 			XFreeGC(display, gr);*/
 			//XUnloadFont(display, fontInfo->fid);
 		}
-		XSetWindowBorder(display, win, ((*_c) != d->GetCur()) ? winUnfocus : (m == monitors[monitorId]) ? winFocus : winInfocus);
+		XSetWindowBorder(display, win, (_c.get() != d->getCur()) ? winUnfocus : (m == monitors[monitorId].get()) ? winFocus : winInfocus);
 
-		XSetWindowBorderWidth(display, win, (*_c)->isFull || (!IsFloatOrFullscreen(*_c) &&
+		XSetWindowBorderWidth(display, win, _c->isFull || (!isFloatOrFullscreen(_c.get()) &&
 			(d->mode == MONOCLE || !d->clients.size() > 1)) ? 0 : config->BORDER_WIDTH);
 
-		
-
-		if (*_c != d->GetCur()) {
-			auto id = ((*_c)->isFull ? --fl:IsFloatOrFullscreen(*_c) ? --ft:--n) * scale;
-			w[id] = (*_c)->win;
+		if (_c.get() != d->getCur()) {
+			auto id = (_c->isFull ? --fl:isFloatOrFullscreen(_c.get()) ? --ft:--n) * scale;
+			w[id] = _c->win;
 			if (config->SHOW_DECORATE) {
-				w[id+1] = (*_c)->decorate;
+				w[id+1] = _c->decorate;
 			}
 		}
-		if (config->CLICK_TO_FOCUS || (*_c) == d->GetCur()) {
-			GrabButtons(*_c);
+		if (config->CLICK_TO_FOCUS || _c.get() == d->getCur()) {
+			grabButtons(_c.get());
 		}
 	}
+	
 	XRestackWindows(display, w, Length(w));
 
-	XSetInputFocus(display, d->GetCur()->win, RevertToPointerRoot, CurrentTime);
+	XSetInputFocus(display, d->getCur()->win, RevertToPointerRoot, CurrentTime);
 	XChangeProperty(display, rootWin, netatoms[NET_ACTIVE], XA_WINDOW, 32,
-		            PropModeReplace, (unsigned char *)&d->GetCur()->win, 1);
+		            PropModeReplace, (unsigned char*)&d->getCur()->win, 1);
 	XSync(display, false);
 }
 
-void WindowManager::Cleanup(void) {
+void WindowManager::cleanup() {
 	Window rootReturn, parentReturn, *children;
 	unsigned int childrenCount;
 
 	XUngrabKey(display, AnyKey, AnyModifier, rootWin);
 	XQueryTree(display, rootWin, &rootReturn, &parentReturn, &children, &childrenCount);
 	for (unsigned int i = 0; i < childrenCount; i++) {
-		DeleteWindow(children[i]);
+		deleteWindow(children[i]);
 	}
 	if (children) {
 		XFree(children);
 	}
 	XSync(display, false);
 
-	for (auto it = monitors.begin() ; it != monitors.end(); ++it) {
-		delete (*it);
-	}
 	monitors.clear();
-	delete config;
+	config.reset();
 }
 
-void WindowManager::ClientToDesktop(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
+void WindowManager::clientToDesktop(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
 	Desktop *n = nullptr;
-	if (arg->i == m->desktopCurId || arg->i < 0 || arg->i >= config->DESKTOPS || !d->GetCur()) {
+	if (arg->i == m->desktopCurId || arg->i < 0 || arg->i >= config->DESKTOPS || !d->getCur()) {
 		return;
 	}
-	Client *c = d->GetCur();
+
+	auto cUniq = std::move(d->clients[d->curClientId]);
+
+	Client *c = cUniq.get();
 	c->isUnmap = true;
-	n = m->desktops[arg->i];
+	n = m->desktops[arg->i].get();
 	d->clients.erase(d->clients.begin()+c->id);
 	int i = 0;
-	for (auto _c = d->clients.begin(); _c != d->clients.end(); _c++) {
-		(*_c)->id = i;
+	for (auto& _c : d->clients) {
+		_c->id = i;
 		i++;
 	}
 	
@@ -547,77 +385,160 @@ void WindowManager::ClientToDesktop(const Argument *arg) {
 		if (config->SHOW_DECORATE && c->isDecorated) {
 			XUnmapWindow(display, c->decorate);
 		}
-		Focus(d->GetHead(), d, m);
+		focus(d->getHead(), d, m);
 	}
 	XSetWindowAttributes _attr2;
-	_attr2.event_mask = RootMask();
+	_attr2.event_mask = rootMask();
 	XChangeWindowAttributes(display, rootWin, CWEventMask, &_attr2);
-	if (!(c->isFloat || c->isTrans) || (d->GetHead() && d->clients.size() > 1)) {
-		Tile(d, m);
+	if (!(c->isFloat || c->isTrans) || (d->getHead() && d->clients.size() > 1)) {
+		tile(d, m);
 	}
 	c->id = n->clients.size();
-	n->clients.push_back(c);
-	Focus(c, n, m);
+	n->clients.push_back(std::move(cUniq));
+	focus(c, n, m);
 	if (config->FOLLOW_WINDOW) {
-		ChangeDesktop(arg);
-	} else {
-		DesktopInfo();
+		changeDesktop(arg);
 	}
+	desktopInfo();
 }
 
-void WindowManager::ClientToMonitor(const Argument *arg) {
-	Monitor *cm = monitors[monitorId];
+void WindowManager::clientToMonitor(const Argument *arg) {
+	Monitor *cm = monitors[monitorId].get();
 	Monitor *nm = nullptr;
-	Desktop *cd = cm->desktops[cm->desktopCurId];
+	Desktop *cd = cm->desktops[cm->desktopCurId].get();
 	Desktop *nd = nullptr;
 	if (arg->i == monitorId || arg->i < 0 || arg->i >= monitorCount || 
-		!cd->GetCur()) {
+		!cd->getCur()) {
 		return;
 	}
-	nm = monitors[arg->i];
-	nd = nm->desktops[nm->desktopCurId];
-	Client *c = cd->GetCur();
-	cd->clients.erase(cd->clients.begin()+cd->GetCur()->id);
+	nm = monitors[arg->i].get();
+	nd = nm->desktops[nm->desktopCurId].get();
+
+	auto cUniq = std::move(cd->clients[cd->curClientId]);
+	Client *c = cUniq.get();
+	cd->clients.erase(cd->clients.begin() + cd->getCur()->id);
 	int i = 0;
-	for (auto _c = cd->clients.begin(); _c != cd->clients.end(); _c++) {
-		(*_c)->id = i;
+	for (auto& _c : cd->clients) {
+		_c->id = i;
 		i++;
 	}
 
-	Focus(cd->GetHead(), cd, cm);
-	if (!(c->isFloat || c->isTrans) || (cd->GetHead() && cd->clients.size() > 1)) {
-		Tile(cd, cm);
+	focus(cd->getHead(), cd, cm);
+	if (!(c->isFloat || c->isTrans) || (cd->getHead() && cd->clients.size() > 1)) {
+		tile(cd, cm);
 	}
-	if (IsFloatOrFullscreen(c)) {
+	if (isFloatOrFullscreen(c)) {
 		c->isFloat = c->isFull = false;
 	}
-	nd->clients.push_back(c);
+	nd->clients.push_back(std::move(cUniq));
 	c->id = nd->clients.size()-1;
-	Focus(c, nd, nm);
-	Tile(nd, nm);
+	focus(c, nd, nm);
+	tile(nd, nm);
 	if (config->FOLLOW_MONITOR) {
-		ChangeMonitor(arg);
-	} else {
-		DesktopInfo();
+		changeMonitor(arg);
 	}
+	desktopInfo();
 }
 
-void WindowManager::clientMessage(XEvent *e) {
+void WindowManager::eventFromClient(XEvent* e) {
+	if (e->xclient.data.l[0] == 0) {
+		Argument a(e->xclient.data.l[1]);
+		changeDesktop(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 1) {
+		Argument a(e->xclient.data.l[1]);
+		changeMonitor(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 2) {
+		Argument a(e->xclient.data.l[1]);
+		switchMode(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 3) {
+		Argument a(0);
+		quit(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 4) {
+		Argument a(e->xclient.data.l[1]);
+		togglePanel(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 5) {
+		Argument a(e->xclient.data.l[1]);
+		nextWin(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 6) {
+		Argument a(e->xclient.data.l[1]);
+		prevWin(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 7) {
+		Argument a(e->xclient.data.l[1]);
+		nextDesktop(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 8) {
+		Argument a(e->xclient.data.l[1]);
+		prevDesktop(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 9) {
+		Argument a(e->xclient.data.l[1]);
+		toggleFullscreenClient(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 10) {
+		Argument a(e->xclient.data.l[1]);
+		toggleFloatClient(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 11) {
+		Argument a(1);
+		changeLayout(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 12) {
+		Argument a(-1);
+		changeLayout(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 13) {
+		Argument a(e->xclient.data.l[1]);
+		restart(&a);
+		return;
+	}
+    if (e->xclient.data.l[0] == 14) {
+		Argument a(e->xclient.data.l[1]);
+		restartMonitors(&a);
+		return;
+	}
+
+}
+
+void WindowManager::clientMessage(XEvent* e) {
+	if (e->xclient.message_type == unknowwm_client_event) {
+		eventFromClient(e);
+		return;
+	}
 	Monitor *m = nullptr;
 	Desktop *d = nullptr;
 	Client *c = nullptr;
-	if (!WinToClient(e->xclient.window, &c, &d, &m)) {
+	if (!winToClient(e->xclient.window, &c, &d, &m)) {
 		return;
 	}
 	if (e->xclient.message_type        == netatoms[NET_WM_STATE] && (
 		(unsigned)e->xclient.data.l[1] == netatoms[NET_FULLSCREEN] ||
 		(unsigned)e->xclient.data.l[2] == netatoms[NET_FULLSCREEN])) {
-		FullscreenMode(c, d, m, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isFull)));
+		fullscreenMode(c, d, m, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isFull)));
 		if (!(c->isFloat || c->isTrans) || !d->clients.size() > 1) {
-			Tile(d, m);
+			tile(d, m);
 		}
 	} else if (e->xclient.message_type == netatoms[NET_ACTIVE]) {
-		Focus(c, d, m);
+		focus(c, d, m);
 	}
 }
 
@@ -630,12 +551,12 @@ void WindowManager::configureRequest(XEvent *e) {
 	Monitor *m = nullptr;
 	Desktop *d = nullptr;
 	Client *c = nullptr;
-	if (WinToClient(ev->window, &c, &d, &m)) {
-		Tile(d, m);
+	if (winToClient(ev->window, &c, &d, &m)) {
+		tile(d, m);
 	}
 }
 
-void WindowManager::DeleteWindow(Window w) {
+void WindowManager::deleteWindow(Window w) {
 	XEvent ev = { .type = ClientMessage };
 	ev.xclient.window = w;
 	ev.xclient.format = 32;
@@ -645,7 +566,10 @@ void WindowManager::DeleteWindow(Window w) {
 	XSendEvent(display, w, false, NoEventMask, &ev);
 }
 
-void WindowManager::DesktopInfo() {
+void WindowManager::desktopInfo() {
+	if (config->SEND_STATUS_SCRIPT.empty()) {
+		return;
+	}
 	Monitor *m = nullptr;
 	Client *c = nullptr;
 	bool urgent = false;
@@ -657,17 +581,17 @@ void WindowManager::DesktopInfo() {
 		info += (monitorId == cm ? "\"cur\": true,\n" : "\"cur\": false,\n");
 		info += "\"desktops\": [\n";
 		for (int cd = 0; cd < config->DESKTOPS; cd++) {
-			m = monitors[cm];
+			m = monitors[cm].get();
 			info += "{\n";
 			info += (m->desktopCurId == cd ? "\"cur\": true,\n" : "\"cur\": false,\n");
 			info += "\"mode\":";
 			info += std::to_string(m->desktops[cd]->mode) + ",\n";
 			info += "\"clients\": [\n";
 			auto cc = 0;
-			for (auto _c = m->desktops[cd]->clients.begin(); _c != m->desktops[cd]->clients.end(); _c++) {
+			for (auto& _c : m->desktops[cd]->clients) {
 				info += "{\n";
-				info += "\"title\": \"" + (*_c)->title + "\",";
-				if (m->desktops[cd]->curClientId == (*_c)->id) {
+				info += "\"title\": \"" + _c->title + "\",";
+				if (m->desktops[cd]->curClientId == _c->id) {
 					info += "\"cur\": true";
 				} else {
 					info += "\"cur\": false";
@@ -698,31 +622,25 @@ void WindowManager::DesktopInfo() {
 	}
 	info += "]\n";
 	info += "}\n";
-	Logger::Log(info);
-	
-	FILE *f = fopen("/home/daniil/wminfo", "w");
-	if (f != nullptr) {
-		fprintf(f, "%s", info.c_str());
-	}
-	fclose(f);
-	//std::ofstream out;
-	//out.open("/home/daniil/wminfo");
-	//if (out.is_open()) {
-	//	out << info;
-	//}
-	//out.close();
-	//tcp.Send(info);
+	//LINFO << info;
+
+	std::istringstream iss(config->SEND_STATUS_SCRIPT);
+	std::vector<std::string> cmd((std::istream_iterator<std::string>(iss)),
+		std::istream_iterator<std::string>());
+	cmd.push_back(info);
+	Argument a(cmd);
+	runCmd(&a);
 }
 
 void WindowManager::destroyNotify(XEvent *e) {
 	Monitor *m = nullptr;
 	Desktop *d = nullptr;
 	Client *c = nullptr;
-	if (WinToClient(e->xdestroywindow.window, &c, &d, &m)) {
+	if (winToClient(e->xdestroywindow.window, &c, &d, &m)) {
 		if (config->SHOW_DECORATE && c->isDecorated) {
-			DecorationsDestroy(c);
+			c->decorationsDestroy(display);
 		}
-		RemoveClient(c, d, m);
+		removeClient(c, d, m);
 	}
 }
 
@@ -735,25 +653,25 @@ void WindowManager::enterNotify(XEvent *e) {
 	if (!config->FOLLOW_MOUSE || 
 		(e->xcrossing.mode != NotifyNormal && 
 		e->xcrossing.detail == NotifyInferior) || 
-		!WinToClient(e->xcrossing.window, &c, &d, &m) || 
-		e->xcrossing.window == d->GetCur()->win) {
+		!winToClient(e->xcrossing.window, &c, &d, &m) || 
+		e->xcrossing.window == d->getCur()->win) {
 		return;
 	}
-	if (m != monitors[monitorId]) {
+	if (m != monitors[monitorId].get()) {
 		for (int cm = 0; cm < monitorCount; cm++) {
-			if (m == monitors[cm]) {
+			if (m == monitors[cm].get()) {
 				Argument _arg;
 				_arg.i = cm;
-				ChangeMonitor(&_arg);
+				changeMonitor(&_arg);
 			}
 		}
 	}
-	if ((p = d->GetPrev())) {
+	if ((p = d->getPrev())) {
 		XSetWindowAttributes attr;
 		attr.do_not_propagate_mask = EnterWindowMask;
 		XChangeWindowAttributes(display, p->win, CWEventMask, &attr);
 	}
-	Focus(c, d, m);
+	focus(c, d, m);
 	if (p) {
 		XSetWindowAttributes attr;
 		attr.event_mask = EnterWindowMask;
@@ -762,57 +680,44 @@ void WindowManager::enterNotify(XEvent *e) {
 }
 
 void WindowManager::focusIn(XEvent *e) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
-	if (d->GetCur() && d->GetCur()->win != e->xfocus.window) {
-		Focus(d->GetCur(), d, m);
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	if (d->getCur() && d->getCur()->win != e->xfocus.window) {
+		focus(d->getCur(), d, m);
 	}
 }
 
-
-void WindowManager::FocusUrGent() {
-	Monitor *m = monitors[monitorId];
+void WindowManager::focusUrGent() {
+	Monitor *m = monitors[monitorId].get();
 	Client *c = nullptr;
 	int d = -1;
 	auto _c = m->desktops[m->desktopCurId]->clients.begin();
 	for (_c = m->desktops[m->desktopCurId]->clients.begin(); 
 		_c != m->desktops[m->desktopCurId]->clients.end() && !(*_c)->isUrgn; _c++);
-	c = *_c;
+	c = _c->get();
 	while (!c && d < config->DESKTOPS-1) {
 		for (auto _c = m->desktops[++d]->clients.begin(); 
 			_c != m->desktops[m->desktopCurId]->clients.end() && !(*_c)->isUrgn; c++);
-		c = *_c;
+		c = _c->get();
 	}
 	if (c) {
 		if (d != -1) {
 			Argument _arg;
 			_arg.i = d;
-			ChangeDesktop(&_arg);
-			Focus(c, m->desktops[m->desktopCurId], m); 
+			changeDesktop(&_arg);
+			focus(c, m->desktops[m->desktopCurId].get(), m); 
 		}
 	}
 }
 
-unsigned long WindowManager::GetColor(std::string _color, const int screen) {
-	const char* color = _color.c_str();
-	XColor c;
-	Colormap map = DefaultColormap(display, screen);
-	if (!XAllocNamedColor(display, map, color, &c, &c)) {
-		Logger::Err("Cannot allocate color\n");
-		exit(-1);
-	}
-	return c.pixel;
-}
-
-
-void WindowManager::GrabButtons(Client *c) {
-	Monitor *cm = monitors[monitorId];
+void WindowManager::grabButtons(Client *c) {
+	Monitor *cm = monitors[monitorId].get();
 	unsigned int b, m, modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
 
 	for (m = 0; config->CLICK_TO_FOCUS && m < Length(modifiers); m++) {
-		if (c != cm->desktops[cm->desktopCurId]->GetCur()) {
+		if (c != cm->desktops[cm->desktopCurId]->getCur()) {
 			XGrabButton(display, config->FOCUS_BUTTON, modifiers[m],
-				c->win, false, ButtonMask(), GrabModeAsync, GrabModeAsync, None, None);
+				c->win, false, buttonMask(), GrabModeAsync, GrabModeAsync, None, None);
 		} else {
 			XUngrabButton(display, config->FOCUS_BUTTON, modifiers[m], c->win);
 		}
@@ -821,13 +726,13 @@ void WindowManager::GrabButtons(Client *c) {
 		while (m < Length(modifiers)) {
 			XGrabButton(display, config->buttons[b].button, 
 				        config->buttons[b].mask|modifiers[m++], c->win,
-				        false, ButtonMask(), GrabModeAsync, GrabModeAsync, None, None);
+				        false, buttonMask(), GrabModeAsync, GrabModeAsync, None, None);
 		}
 	}
 }
 
 
-void WindowManager::GrabKeys() {
+void WindowManager::grabKeys() {
 	KeyCode code;
 	XUngrabKey(display, AnyKey, AnyModifier, rootWin);
 	unsigned int k, m, modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
@@ -843,45 +748,44 @@ void WindowManager::keyPress(XEvent *e) {
 	KeySym keysym = XkbKeycodeToKeysym(display, e->xkey.keycode, 0, 0);
 	for (unsigned int i = 0; i < config->keys.size(); i++) {
 		if (keysym == config->keys[i].keysym && 
-			CleanMask(config->keys[i].mod) == CleanMask(e->xkey.state)) {
+			cleanMask(config->keys[i].mod) == cleanMask(e->xkey.state)) {
 			if (config->keys[i].func != "") {
-				RunFunc("keys", config->keys[i].func, &config->keys[i].arg);
-				//config->keys[i].func(&config->keys[i].arg);
+				runFunc("keys", config->keys[i].func, &config->keys[i].arg);
 			}
 		}
 	}
 }
 
-void WindowManager::RunFunc(std::string type, std::string funcStr, const Argument *arg) {
+void WindowManager::runFunc(std::string type, std::string funcStr, const Argument *arg) {
 	if (type == "keys") {
 		(*this.*runFuncMap[funcStr])(arg);
 	}
 	if (type =="button") {
 		if (funcStr == "MouseMotion") {
-			MouseMotion(arg);
+			mouseMotion(arg);
 		}
 	}
 }
 
-void WindowManager::KillClient(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
-	if (!d->GetCur()) {
+void WindowManager::killClient(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	if (!d->getCur()) {
 		return;
 	}
 	Atom *prot = nullptr;
 	int n = -1;
-	if (XGetWMProtocols(display, d->GetCur()->win, &prot, &n)) {
+	if (XGetWMProtocols(display, d->getCur()->win, &prot, &n)) {
 		while(--n >= 0 && prot[n] != wmatoms[WM_DELETE_WINDOW]);
 	}
 	if (config->SHOW_DECORATE) {
-		DecorationsDestroy(d->GetCur());
+		d->getCur()->decorationsDestroy(display);
 	}
 	if (n < 0) { 
-		XKillClient(display, d->GetCur()->win);
-		RemoveClient(d->GetCur(), d, m); 
+		XKillClient(display, d->getCur()->win);
+		removeClient(d->getCur(), d, m); 
 	} else {
-		DeleteWindow(d->GetCur()->win);
+		deleteWindow(d->getCur()->win);
 	}
 	
 	if (prot) {
@@ -889,120 +793,11 @@ void WindowManager::KillClient(const Argument *arg) {
 	}
 }
 
-void WindowManager::GridMode(int x, int y, int w, int h, Desktop *d) {
-	int n = 0;
-	int cols = 0;
-	int cn = 0;
-	int rn = 0;
-	int i = -1;
-	
-	for (auto c = d->clients.begin(); c != d->clients.end(); c++) {
-		if (!IsFloatOrFullscreen(*c)) {
-			++n;
-		}
-	}
-
-	for (cols = 0; cols <= n/2; cols++) {
-		if (cols*cols >= n) {
-			break;
-		}
-	}
-	if (n == 0) {
-		return;
-	} else if (n == 5) {
-		cols = 2;
-	}
-
-	int rows = n/cols;
-	int ch = h - config->BORDER_WIDTH - config->USELESSGAP;
-	int cw = (w - config->BORDER_WIDTH - config->USELESSGAP)/(cols ? cols:1);
-	for (auto c = d->clients.begin(); c != d->clients.end(); c++) {
-		if (IsFloatOrFullscreen(*c)) {
-			continue; 
-		} else {
-			++i;
-		}
-		if (i/rows + 1 > cols - n % cols) {
-			rows = n/cols + 1;
-		}
-		auto win = config->SHOW_DECORATE ? (*c)->decorate : (*c)->win;
-		if (!(*c)->isHide){
-		XMoveResizeWindow(display, win, x + cn*cw + config->USELESSGAP, 
-			y + rn*ch/rows + config->USELESSGAP, 
-			cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-			ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP);
-		
-		if (config->SHOW_DECORATE && (*c)->isDecorated) {
-			MoveResizeLocal((*c)->win, x + cn*cw + config->USELESSGAP, 
-				y + rn*ch/rows + config->USELESSGAP, 
-				cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-				ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP);
-		}
-		}
-		if (++rn >= rows) {
-			rn = 0;
-			cn++;
-		}
-	}
-}
-
-void WindowManager::MoveResizeLocal(Window win , int x, int y, int w, int h) {
-	int titleup = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP) ? config->TITLE_HEIGHT:0;
-	int titledown = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_DOWN) ? config->TITLE_HEIGHT:0;
-	int titleleft = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_LEFT) ? config->TITLE_HEIGHT:0;
-	int titleright = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_RIGHT) ? config->TITLE_HEIGHT:0;
-	int titleh = config->SHOW_TITLE ? config->TITLE_HEIGHT:0;
-	XMoveResizeWindow(display, win, 
-		x + config->BORDER_WIDTH + config->DECORATE_BORDER_WIDTH + titleleft, 
-		y + config->BORDER_WIDTH + config->DECORATE_BORDER_WIDTH + titleup, 
-		w-2*(config->DECORATE_BORDER_WIDTH) - ((titleright || titleleft)?titleh:0), 
-		h-2*(config->DECORATE_BORDER_WIDTH) - ((titleup || titledown)?titleh:0));
-
-}
-
-void WindowManager::MonocleMode(int x, int y, int w, int h, Desktop *d) {
-	for (auto c = d->clients.begin(); c != d->clients.end(); c++) {
-		if (!IsFloatOrFullscreen(*c)) {
-			if (!(*c)->isHide) {
-			if (config->SHOW_DECORATE) {
-				XMoveResizeWindow(display, (*c)->decorate, x + config->USELESSGAP, 
-					y + config->USELESSGAP, 
-					w - 2*config->USELESSGAP, 
-					h - 2*config->USELESSGAP);
-			}
-			XMoveResizeWindow(display, (*c)->win, x + config->USELESSGAP, 
-				y + config->USELESSGAP, 
-				w - 2*config->USELESSGAP, 
-				h - 2*config->USELESSGAP);
-			}
-		}
-	}
-}
-
-void WindowManager::PrevDesktop(const Argument *_arg) {
+void WindowManager::prevDesktop(const Argument *_arg) {
 	Argument arg;
 	arg.i = monitors[monitorId]->desktopPrevId;
-	ChangeDesktop(&arg);
+	changeDesktop(&arg);
 }
-
-void WindowManager::MoveLocal(Window win, int x, int y) {
-	int titleup = config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP ? config->TITLE_HEIGHT:0;
-	int titleleft = config->SHOW_TITLE && config->TITLE_POSITION == TITLE_LEFT ? config->TITLE_HEIGHT:0;
-	XMoveWindow(display, win, 
-		x + config->BORDER_WIDTH + config->DECORATE_BORDER_WIDTH + titleleft, 
-		y + config->BORDER_WIDTH + config->DECORATE_BORDER_WIDTH + titleup);
-}
-void WindowManager::ResizeLocal(Window win, int w, int h) {
-	int titleup = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_UP) ? config->TITLE_HEIGHT:0;
-	int titledown = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_DOWN) ? config->TITLE_HEIGHT:0;
-	int titleleft = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_LEFT) ? config->TITLE_HEIGHT:0;
-	int titleright = (config->SHOW_TITLE && config->TITLE_POSITION == TITLE_RIGHT) ? config->TITLE_HEIGHT:0;
-	int titleh = config->SHOW_TITLE ? config->TITLE_HEIGHT:0;
-	XResizeWindow(display, win, 
-		w-2*(config->DECORATE_BORDER_WIDTH) - ((titleright!=0 || titleleft!=0)?titleh:0), 
-		h-2*(config->DECORATE_BORDER_WIDTH) - ((titleup!=0 || titledown!=0)?titleh:0));
-}
-
 
 void WindowManager::mapRequest(XEvent *e) {
 	Monitor *m = nullptr;
@@ -1011,7 +806,7 @@ void WindowManager::mapRequest(XEvent *e) {
 	Window w = e->xmaprequest.window;
 	XWindowAttributes wa = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-	if (WinToClient(w, &c, &d, &m) || (XGetWindowAttributes(display, w, &wa) && wa.override_redirect)) {
+	if (winToClient(w, &c, &d, &m) || (XGetWindowAttributes(display, w, &wa) && wa.override_redirect)) {
 		return;
 	}
 	XClassHint ch = {0, 0};
@@ -1042,22 +837,22 @@ void WindowManager::mapRequest(XEvent *e) {
 	if (ch.res_name) {
 		XFree(ch.res_name);
 	}
-	m = monitors[newmon];
-	d = m->desktops[newdsk];
+	m = monitors[newmon].get();
+	d = m->desktops[newdsk].get();
 	
-	c = AddWindow(w, d);
+	c = addWindow(w, d);
 	if (c == nullptr) {
 		return;
 	}
 	c->isFull = false;
 	c->isTrans = XGetTransientForHint(display, c->win, &w);
-	if ((c->isFloat = (floating || d->mode == FLOAT)) && !c->isTrans) {
+	if ((c->isFloat = (floating || d->mode == FLOAT_MODE)) && !c->isTrans) {
 		auto win = config->SHOW_DECORATE ? c->decorate : c->win;
 		XMoveWindow(display, win, m->x + (m->w - wa.width)/2, m->y + (m->h - wa.height)/2);
 
 		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveLocal(c->win, m->x + (m->w - wa.width)/2, 
-				m->y + (m->h - wa.height)/2);
+			c->moveLocal(m->x + (m->w - wa.width)/2, 
+				m->y + (m->h - wa.height)/2, *config, display);
 		}
 	}
 	int i;
@@ -1066,7 +861,7 @@ void WindowManager::mapRequest(XEvent *e) {
 	Atom a;
 	if (XGetWindowProperty(display, c->win, netatoms[NET_WM_STATE], 0L, sizeof a,
 		false, XA_ATOM, &a, &i, &l, &l, &state) == Success && state) {
-		FullscreenMode(c, d, m, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
+		fullscreenMode(c, d, m, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
 	}
 	if (state) {
 		XFree(state);
@@ -1084,7 +879,7 @@ void WindowManager::mapRequest(XEvent *e) {
 	if (m->desktopCurId == newdsk) {
 		
 		if (/*!IsFloatOrFullscreen(c)*/!c->isFloat) {
-			Tile(d, m);
+			tile(d, m);
 		}
 		auto _win = config->SHOW_DECORATE ? c->decorate : c->win;
 		XMapWindow(display, _win);
@@ -1098,50 +893,48 @@ void WindowManager::mapRequest(XEvent *e) {
 		arg1.i = newmon;
 		Argument arg2;
 		arg2.i = newdsk;
-		ChangeMonitor(&arg1);
-		ChangeDesktop(&arg2);
+		changeMonitor(&arg1);
+		changeDesktop(&arg2);
 	}
 	//if (!c->isIgnore)
-	Focus(c, d, m);
-
-	if (!follow) {
-		DesktopInfo();
-	}
+	focus(c, d, m);
+	
+	desktopInfo();
 }
 
-void WindowManager::MouseMotion(const Argument *Argument) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
+void WindowManager::mouseMotion(const Argument *Argument) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
 	XWindowAttributes wa;
 	XEvent ev;
-	if (!d->GetCur() || !XGetWindowAttributes(display, d->GetCur()->win, &wa)) {
+	if (!d->getCur() || !XGetWindowAttributes(display, d->getCur()->win, &wa)) {
 		return;
 	}
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans && !config->AUTOFLOATING) {
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans && !config->AUTOFLOATING) {
 		return;
 	}
 	if (Argument->i == RESIZE) {
-		XWarpPointer(display, d->GetCur()->win, d->GetCur()->win, 0, 0, 0, 0, --wa.width, --wa.height);
+		XWarpPointer(display, d->getCur()->win, d->getCur()->win, 0, 0, 0, 0, --wa.width, --wa.height);
 	}
 	int rx, ry, c, xw, yh; 
 	unsigned int v; 
 	Window w;
-	if (!XQueryPointer(display, rootWin, &w, &w, &rx, &ry, &c, &c, &v) || w != d->GetCur()->win) {
+	if (!XQueryPointer(display, rootWin, &w, &w, &rx, &ry, &c, &c, &v) || w != d->getCur()->win) {
 		return;
 	}
-	if (XGrabPointer(display, rootWin, false, ButtonMask()|PointerMotionMask, GrabModeAsync,
+	if (XGrabPointer(display, rootWin, false, buttonMask()|PointerMotionMask, GrabModeAsync,
 		GrabModeAsync, None, None, CurrentTime) != GrabSuccess) {
 			return;
 	}
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans) {
-		d->GetCur()->isFloat = true;
-		Tile(d, m);
-		Focus(d->GetCur(), d, m);
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans) {
+		d->getCur()->isFloat = true;
+		tile(d, m);
+		focus(d->getCur(), d, m);
 	}
 	if (config->SHOW_DECORATE) {
-		XRaiseWindow(display, d->GetCur()->decorate);
+		XRaiseWindow(display, d->getCur()->decorate);
 	}
-	XRaiseWindow(display, d->GetCur()->win);
+	XRaiseWindow(display, d->getCur()->win);
 	do {
 		XMaskEvent(display, ButtonPressMask|ButtonReleaseMask |
 			PointerMotionMask | SubstructureRedirectMask, &ev);
@@ -1149,17 +942,17 @@ void WindowManager::MouseMotion(const Argument *Argument) {
 			xw = (Argument->i == MOVE ? wa.x:wa.width)  + ev.xmotion.x - rx;
 			yh = (Argument->i == MOVE ? wa.y:wa.height) + ev.xmotion.y - ry;
 			if (Argument->i == RESIZE) {
-				auto win = config->SHOW_DECORATE ? d->GetCur()->decorate : d->GetCur()->win;
-				if (config->SHOW_DECORATE && d->GetCur()->isDecorated) {
-					ResizeLocal(d->GetCur()->win, (xw > config->MINWSZ ? xw:wa.width), 
-						(yh > config->MINWSZ ? yh:wa.height));
+				auto win = config->SHOW_DECORATE ? d->getCur()->decorate : d->getCur()->win;
+				if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+					d->getCur()->resizeLocal((xw > config->MINWSZ ? xw:wa.width), 
+						(yh > config->MINWSZ ? yh:wa.height), *config, display);
 				}
 				XResizeWindow(display, win,
 					xw > config->MINWSZ ? xw:wa.width, yh > config->MINWSZ ? yh:wa.height);
 			} else if (Argument->i == MOVE) {
-				auto win = config->SHOW_DECORATE ? d->GetCur()->decorate : d->GetCur()->win;
-				if (config->SHOW_DECORATE && d->GetCur()->isDecorated) {
-					MoveLocal(d->GetCur()->win, xw, yh);
+				auto win = config->SHOW_DECORATE ? d->getCur()->decorate : d->getCur()->win;
+				if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+					d->getCur()->moveLocal(xw, yh, *config, display);
 				}
 				XMoveWindow(display, win, xw, yh);
 				
@@ -1172,143 +965,136 @@ void WindowManager::MouseMotion(const Argument *Argument) {
 	XUngrabPointer(display, CurrentTime);
 }
 
-void WindowManager::MoveDown(const Argument *arg) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (!d->GetCur() || d->clients.size() <= 1) {
+void WindowManager::moveDown(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (!d->getCur() || d->clients.size() <= 1) {
 		return;
 	}
 	
-	auto _id1 = d->GetCur()->id;
+	auto _id1 = d->getCur()->id;
 	auto _id2 = (_id1 + 1 < d->clients.size()) ? _id1 + 1 : 0;
 	
 	d->clients[_id1]->id = _id2;
 	d->clients[_id2]->id = _id1;
 
-	auto elem = d->clients[_id1];
-	d->clients[_id1] = d->clients[_id2];
-	d->clients[_id2] = elem;
+	auto elem = std::move(d->clients[_id1]);
+	d->clients[_id1] = std::move(d->clients[_id2]);
+	d->clients[_id2] = std::move(elem);
 	
 	d->curClientId = _id2;
 	d->prevClientId = _id2 > 0 ? _id2-1 : d->clients.size()-1;
 
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans) {
-		Tile(d, monitors[monitorId]);
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans) {
+		tile(d, monitors[monitorId].get());
 	}
 }
 
-void WindowManager::MoveUp(const Argument *arg) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (!d->GetCur() || d->clients.size() <= 1) {
+void WindowManager::moveUp(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (!d->getCur() || d->clients.size() <= 1) {
 		return;
 	}
 		
-	auto _id1 = d->GetCur()->id;
+	auto _id1 = d->getCur()->id;
 	auto _id2 = (_id1 - 1 >= 0) ? _id1 - 1 : d->clients.size()-1;
 	
 	d->clients[_id1]->id = _id2;
 	d->clients[_id2]->id = _id1;
 
-	auto elem = d->clients[_id1];
-	d->clients[_id1] = d->clients[_id2];
-	d->clients[_id2] = elem;
+	auto elem = std::move(d->clients[_id1]);
+	d->clients[_id1] = std::move(d->clients[_id2]);
+	d->clients[_id2] = std::move(elem);
 
 	d->curClientId = _id2;
 	d->prevClientId = _id2 > 0 ? _id2-1 : d->clients.size()-1;
 	
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans) {
-		Tile(d, monitors[monitorId]);
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans) {
+		tile(d, monitors[monitorId].get());
 	}
 }
 
-void WindowManager::ToggleFloatClient(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
+void WindowManager::toggleFloatClient(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
 	XWindowAttributes wa;
-	if (!d->GetCur()) {
+	if (!d->getCur()) {
 		return;
 	}
-	auto win = config->SHOW_DECORATE ? d->GetCur()->decorate : d->GetCur()->win;
+	auto win = config->SHOW_DECORATE ? d->getCur()->decorate : d->getCur()->win;
 	if (!XGetWindowAttributes(display, win, &wa)) {
 		return;
 	}
-	d->GetCur()->isFloat = !d->GetCur()->isFloat;
-	Tile(d, m);
-	Focus(d->GetCur(), d, m);
-	if (d->GetCur()->isFloat) {
+	d->getCur()->isFloat = !d->getCur()->isFloat;
+	tile(d, m);
+	focus(d->getCur(), d, m);
+	if (d->getCur()->isFloat) {
 		XRaiseWindow(display, win);
 		//m->w/4, m->h/4, m->w/2, m->h/2
 		XMoveResizeWindow(display, win, (m->w-wa.width)/2, (m->h-wa.height)/2,
 			              wa.width, wa.height);
-		if (config->SHOW_DECORATE && d->GetCur()->isDecorated) {
-			XRaiseWindow(display, d->GetCur()->win);
-			MoveResizeLocal(d->GetCur()->win, (m->w-wa.width)/2, (m->h-wa.height)/2,
-			                wa.width, wa.height);
+		if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+			XRaiseWindow(display, d->getCur()->win);
+			d->getCur()->moveResizeLocal((m->w-wa.width)/2, (m->h-wa.height)/2,
+			                wa.width, wa.height, *config, display);
 		}
-
 	}
 }
 
-void WindowManager::FloatMode(int x, int y, int w, int h, Desktop *d) {
-	for (auto c = d->clients.begin(); c != d->clients.end(); c++) {
-		(*c)->isFloat = true;
-	}
-}
-
-void WindowManager::ToggleFullscreenClient(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
-	if (!d->GetCur()) {
+void WindowManager::toggleFullscreenClient(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	if (!d->getCur()) {
 		return;
 	}
-	FullscreenMode(d->GetCur(), d, m, !d->GetCur()->isFull);
+	fullscreenMode(d->getCur(), d, m, !d->getCur()->isFull);
 }
 
-void WindowManager::MoveResize(const Argument *Argument) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
+void WindowManager::moveResize(const Argument *Argument) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
 	XWindowAttributes wa;
-	if (!d->GetCur() || !XGetWindowAttributes(display, d->GetCur()->win, &wa)) {
+	if (!d->getCur() || !XGetWindowAttributes(display, d->getCur()->win, &wa)) {
 		return;
 	}
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans && !config->AUTOFLOATING) {
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans && !config->AUTOFLOATING) {
 		return;
 	}
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans) {
-		d->GetCur()->isFloat = true;
-		Tile(d, m);
-		Focus(d->GetCur(), d, m);
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans) {
+		d->getCur()->isFloat = true;
+		tile(d, m);
+		focus(d->getCur(), d, m);
 	}
 
-	auto win = config->SHOW_DECORATE ? d->GetCur()->decorate : d->GetCur()->win;
+	auto win = config->SHOW_DECORATE ? d->getCur()->decorate : d->getCur()->win;
 	XRaiseWindow(display, win);
 	XMoveResizeWindow(display, win, wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
 		wa.width + Argument->intArr[2], wa.height + Argument->intArr[3]);
-	if (config->SHOW_DECORATE && d->GetCur()->isDecorated) {
-		XRaiseWindow(display, d->GetCur()->win);
-		MoveResizeLocal(d->GetCur()->win, wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
-			wa.width + Argument->intArr[2], wa.height + Argument->intArr[3]);
+	if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+		XRaiseWindow(display, d->getCur()->win);
+		d->getCur()->moveResizeLocal(wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
+			wa.width + Argument->intArr[2], wa.height + Argument->intArr[3], *config, display);
 	}
 }
 
-void WindowManager::FocusWinById(const Argument *arg) {//arg is id
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (d->GetCur() && d->clients.size() > arg->i) {
-		auto c = d->clients[arg->i];
+void WindowManager::focusWinById(const Argument *arg) {//arg is id
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (d->getCur() && d->clients.size() > arg->i) {
+		auto c = d->clients[arg->i].get();
 		if (c->isHide) {
-			HideClient(c, monitors[monitorId]);
+			hideClient(c, monitors[monitorId].get());
 		}
-		Focus(c, d, monitors[monitorId]);
+		focus(c, d, monitors[monitorId].get());
 	}
 }
 
-void WindowManager::NextWin(const Argument *arg) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (d->GetCur() && d->clients.size() > 1) {
-		auto c = (d->GetCur()->id + 1 < d->clients.size()) ? d->clients[d->GetCur()->id + 1] : d->clients[0];
+void WindowManager::nextWin(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (d->getCur() && d->clients.size() > 1) {
+		auto c = (d->getCur()->id + 1 < d->clients.size()) ? d->clients[d->getCur()->id + 1].get() : d->clients[0].get();
 		if (c->isHide) {
-			HideClient(c, monitors[monitorId]);
+			hideClient(c, monitors[monitorId].get());
 		}
-		Focus(c, d, monitors[monitorId]);
+		focus(c, d, monitors[monitorId].get());
 	}
 }
 
@@ -1317,14 +1103,14 @@ void WindowManager::propertyNotify(XEvent *e) {
 	Desktop *d = nullptr;
 	Client *c = nullptr;
 
-	if (!WinToClient(e->xproperty.window, &c, &d, &m)) {
+	if (!winToClient(e->xproperty.window, &c, &d, &m)) {
 		return;
 	}
 
 	if (e->xproperty.atom == XA_WM_HINTS) {
 		XWMHints *wmh = XGetWMHints(display, c->win);
-		Desktop *cd = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-		c->isUrgn = (c != cd->GetCur() && wmh && (wmh->flags & XUrgencyHint));
+		Desktop *cd = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+		c->isUrgn = (c != cd->getCur() && wmh && (wmh->flags & XUrgencyHint));
 		if (wmh) {
 			XFree(wmh);
 		}
@@ -1333,99 +1119,110 @@ void WindowManager::propertyNotify(XEvent *e) {
 		XGetTextProperty(display, c->win, &name, XA_WM_NAME);
 		if (name.nitems && name.encoding == XA_STRING) {
 			c->title = (char *)name.value;
-			Focus(c, d, m);
+			focus(c, d, m);
 		}
 		if (name.value) {
 			XFree(name.value);
 		}
 	}
 	
-	DesktopInfo();
+	//desktopInfo();
 }
 
 void WindowManager::Sigchld(int sig) {
 	if (signal(SIGCHLD, Sigchld) != SIG_ERR) {
 		while(0 < waitpid(-1, NULL, WNOHANG));
 	} else {
-		Logger::Err("Cannot install SIGCHLD handler");
+		LERR << "Cannot install SIGCHLD handler";
 		//exit(-1);
 	}
 }
 
-void WindowManager::Restart(const Argument *arg) {
+void WindowManager::restart(const Argument *arg) {
 	for (auto i = 0; i < monitors.size(); ++i) {
 		for (auto d = 0; d < monitors[i]->desktops.size(); ++d) {
 			for (auto c = 0; c < monitors[i]->desktops[d]->clients.size(); ++c) {
-				KillClient(nullptr);
+				killClient(nullptr);
 			}
 		}
 	}
 
 	monitors.clear();
 	std::string path = config->CONFIG_PATH;
-	delete config;
-	config = new Config(path);
-	Init();
+	config = std::make_unique<Config>(path);
+	init();
 }
 
-
-void WindowManager::RestartMonitors(const Argument *arg) {
+void WindowManager::restartMonitors(const Argument *arg) {
 	XRRScreenResources *screenList = XRRGetScreenResources(display, rootWin);
 	if (!screenList) {
-		Logger::Err("Xrandr is not active");
+		LERR << "Xrandr is not active\n";
 		exit(-1);
 	}
 
 	const int _monitorCount = screenList->ncrtc;
-	//monitors.resize(monitorCount);
 	XRRCrtcInfo *mscreen = nullptr;
-	auto _monitorCountTruth = 0;
+	std::vector<Rect> rects;
 	for (int m = 0; m < _monitorCount; m++) {
-		
 		mscreen = XRRGetCrtcInfo(display, screenList, 
 			screenList->crtcs[m]);
 		if (!mscreen->mode) {
 			continue;
 		}
+		rects.push_back(Rect{mscreen->x, mscreen->y, mscreen->width, mscreen->height});
+		XRRFreeCrtcInfo(mscreen);
+	}
 
-		if (_monitorCountTruth < monitors.size()) {
-			monitors[m]->x = mscreen->x;
-			monitors[m]->y = mscreen->y;
-			monitors[m]->w = mscreen->width;
-			monitors[m]->h = mscreen->height;
-		
-		} else {
-			Monitor *monitor = new Monitor(config->DESKTOPS);
-			monitor->x = mscreen->x;
-			monitor->y = mscreen->y;
-			monitor->w = mscreen->width;
-			monitor->h = mscreen->height;
-			monitors.push_back(monitor);
+	if (rects.size() == monitors.size()) {
+		int i = 0;
+		for (auto& m : monitors) {
+			m->x = rects[i].x;
+			m->y = rects[i].y;
+			m->w = rects[i].w;
+			m->h = rects[i].h;
+			i++;
+		}
+	} else if (rects.size() < monitors.size()) {
+		int i = 0;
+		for (auto& r : rects) {
+			monitors[i]->x = r.x;
+			monitors[i]->y = r.y;
+			monitors[i]->w = r.w;
+			monitors[i]->h = r.h;
+			i++;
+		}
+		for (auto j = rects.size(); j < monitors.size(); j++) {
+			for (auto d = 0; d < monitors[j]->desktops.size(); ++d) {
+				for (auto c = 0; c < monitors[j]->desktops[d]->clients.size(); ++c) {
+					monitors[0]->desktops[0]->clients.push_back(std::move(monitors[j]->desktops[d]->clients[c]));
+				}
+			}
+			monitors.erase(monitors.begin() + j);
+		}
+	} else {
+		int i = 0;
+		for (auto& m : monitors) {
+			m->x = rects[i].x;
+			m->y = rects[i].y;
+			m->w = rects[i].w;
+			m->h = rects[i].h;
+			i++;
+		}
+		for (auto j = monitors.size(); j < rects.size(); j++) {
+			auto monitor = std::make_unique<Monitor>(config->DESKTOPS);
+			monitor->x = rects[j].x;
+			monitor->y = rects[j].y;
+			monitor->w = rects[j].w;
+			monitor->h = rects[j].h;
+			monitors.push_back(std::move(monitor));
 			for (unsigned int d = 0; d < config->DESKTOPS; d++) {
-				Desktop *desk = new Desktop();
+				auto desk = std::make_unique<Desktop>();
 				desk->nm = config->NMASTER;
 				auto mode = config->initLayout[d] != -1 ? config->initLayout[d] : config->DEFAULT_MODE;
 				desk->mode = mode;
 				desk->isBar = config->SHOW_PANEL;
-				monitors[m]->desktops[d] = desk;
+				monitors[monitors.size()-1]->desktops[d] = std::move(desk);
 			}
-		}
-		_monitorCountTruth++;
-
-		XRRFreeCrtcInfo(mscreen);
-	}
-
-	if (_monitorCountTruth < monitors.size()) {
-		for (auto i = _monitorCountTruth; i < monitors.size(); ++i) {
-			for (auto d = 0; d < monitors[i]->desktops.size(); ++d) {
-				for (auto c = 0; c < monitors[i]->desktops[d]->clients.size(); ++c) {
-					KillClient(nullptr);
-				}
-			}
-		}
-		auto ms = monitors.size();
-		for (auto i = _monitorCountTruth; i < ms; ++i) {
-			monitors.erase(monitors.end()-1);
 		}
 	}
 
@@ -1433,7 +1230,7 @@ void WindowManager::RestartMonitors(const Argument *arg) {
 	
 }
 
-void WindowManager::Init() {
+void WindowManager::init() {
 
 	WindowManager::Sigchld(0);
 	const int screen = DefaultScreen(display);
@@ -1444,15 +1241,32 @@ void WindowManager::Init() {
 	if (!monitorCount || !info){
 		Logger::Err("Xinerama is not active");
 		exit(-1);
+	}*/
+	
+	for (auto i = 0; i < config->autostart.size(); ++i) {
+		runCmd(&config->autostart[i]);
+	}
+	///
+	/*
+	auto monitor = std::make_unique<Monitor>(config->DESKTOPS);
+	monitor->x = 0;
+	monitor->y = 0;
+	monitor->w = 800;
+	monitor->h = 600;
+	monitors.push_back(std::move(monitor));
+	for (unsigned int d = 0; d < config->DESKTOPS; d++) {
+		auto desk = std::make_unique<Desktop>();
+		desk->nm = config->NMASTER;
+		auto mode = config->initLayout[d] != -1 ? config->initLayout[d] : config->DEFAULT_MODE;
+		desk->mode = mode;
+		desk->isBar = config->SHOW_PANEL;
+		monitors[0]->desktops[d] = std::move(desk);
 	}
 	*/
-	for (auto i = 0; i < config->autostart.size(); ++i) {
-		RunCmd(&config->autostart[i]);
-	}
-	//usleep(5000);
-	XRRScreenResources *screenList = XRRGetScreenResources(display, rootWin);
+	///
+	XRRScreenResources* screenList = XRRGetScreenResources(display, rootWin);
 	if (!screenList) {
-		Logger::Err("Xrandr is not active");
+		LERR << "Xrandr is not active";
 		exit(-1);
 	}
 
@@ -1467,10 +1281,7 @@ void WindowManager::Init() {
 			continue;
 		}
 		
-		//Logger::Debug("Desktop Size %i\n", config->DESKTOPS);
-
-
-		Monitor *monitor = new Monitor(config->DESKTOPS);
+		auto monitor = std::make_unique<Monitor>(config->DESKTOPS);
 		monitor->x = mscreen->x;
 		monitor->y = mscreen->y;
 		monitor->w = mscreen->width;
@@ -1480,32 +1291,32 @@ void WindowManager::Init() {
 			 std::to_string(monitor->y)+" "+
 			  std::to_string(monitor->w)+" "+
 			   std::to_string(monitor->h)+"\n";
-		Logger::Log(monStr);
-		monitors.push_back(monitor);
+		LINFO << monStr;
+		monitors.push_back(std::move(monitor));
 		for (unsigned int d = 0; d < config->DESKTOPS; d++) {
-			Desktop *desk = new Desktop();
+			auto desk = std::make_unique<Desktop>();
 			desk->nm = config->NMASTER;
 			auto mode = config->initLayout[d] != -1 ? config->initLayout[d] : config->DEFAULT_MODE;
 			desk->mode = mode;
 			desk->isBar = config->SHOW_PANEL;
-			monitors[m]->desktops[d] = desk;
+			monitors[m]->desktops[d] = std::move(desk);
 		}
 	}
 	XRRFreeScreenResources(screenList);
+	
 	//XFree(info);
 	monitorId = 0;
 	monitorCount = monitors.size();
-	Logger::Log("monitors: " + std::to_string(monitorCount));
 
-	winFocus = GetColor(config->FOCUS_COLOR, screen);
-	winUnfocus = GetColor(config->UNFOCUS_COLOR, screen);
-	winInfocus = GetColor(config->INFOCUS_COLOR, screen);
+	winFocus = getColor(config->FOCUS_COLOR, screen, display);
+	winUnfocus = getColor(config->UNFOCUS_COLOR, screen, display);
+	winInfocus = getColor(config->INFOCUS_COLOR, screen, display);
 
-	decorateWinFocus = GetColor(config->DECORATE_FOCUS_COLOR, screen);
-	decorateWinUnfocus = GetColor(config->DECORATE_UNFOCUS_COLOR, screen);
-	decorateWinInfocus = GetColor(config->DECORATE_INFOCUS_COLOR, screen);
+	decorateWinFocus = getColor(config->DECORATE_FOCUS_COLOR, screen, display);
+	decorateWinUnfocus = getColor(config->DECORATE_UNFOCUS_COLOR, screen, display);
+	decorateWinInfocus = getColor(config->DECORATE_INFOCUS_COLOR, screen, display);
 
-	titleTextColor = GetColor(config->TITLE_TEXT_COLOR, screen);
+	titleTextColor = getColor(config->TITLE_TEXT_COLOR, screen, display);
 	
 	//  ??? set numlockmask 
 	XModifierKeymap *modmap = XGetModifierMapping(display);
@@ -1518,8 +1329,12 @@ void WindowManager::Init() {
 	}
 	
 	XFreeModifiermap(modmap);
+	
+	unknowwm_client_event     = XInternAtom(display, "UNKNOWWM_CLIENT_EVENT",    false);
+
 	wmatoms[WM_PROTOCOLS]     = XInternAtom(display, "WM_PROTOCOLS",             false);
 	wmatoms[WM_DELETE_WINDOW] = XInternAtom(display, "WM_DELETE_WINDOW",         false);
+
 	netatoms[NET_SUPPORTED]   = XInternAtom(display, "_NET_SUPPORTED",           false);
 	netatoms[NET_WM_STATE]    = XInternAtom(display, "_NET_WM_STATE",            false);
 	netatoms[NET_ACTIVE]      = XInternAtom(display, "_NET_ACTIVE_WINDOW",       false);
@@ -1530,21 +1345,21 @@ void WindowManager::Init() {
 
 
 	XSetErrorHandler(WMDetected);
-	XSelectInput(display, rootWin, RootMask());
+	XSelectInput(display, rootWin, rootMask());
 	XSync(display, False);
 	XSetErrorHandler(XError);
 	XSync(display, False);
 
-	GrabKeys();
+	grabKeys();
 	if (this->config->DEFAULT_DESKTOP >= 0 && this->config->DEFAULT_DESKTOP < this->config->DESKTOPS) {
 		Argument arg;
 		arg.i = this->config->DEFAULT_DESKTOP;
-		ChangeDesktop(&arg);
+		changeDesktop(&arg);
 	}
 	if (this->config->DEFAULT_MONITOR >= 0 && this->config->DEFAULT_MONITOR < monitorCount) {
 		Argument arg;
 		arg.i = this->config->DEFAULT_MONITOR;
-		ChangeMonitor(&arg);
+		changeMonitor(&arg);
 	}
 }
 
@@ -1554,7 +1369,7 @@ int execvp(const char* file, const char* const (&argv)[N]) {
 	return execvp(file, const_cast<char* const*>(argv));
 }
 
-void WindowManager::RunCmd(const Argument *arg) {
+void WindowManager::runCmd(const Argument *arg) {
 	if (fork()) {
 		return;
 	}
@@ -1565,94 +1380,85 @@ void WindowManager::RunCmd(const Argument *arg) {
 	auto sz = arg->com.size()+1;
 	char * a[sz];
 	for(unsigned int i = 0; i < sz-1; i++) {
-		std::cout <<arg->com[i]<<" RUNCMD\n"; 
+		//LINFO << arg->com[i] << " RUNCMD\n"; 
 		a[i] = (char*)(arg->com[i].c_str());
 	}
 	a[sz-1] = nullptr;
 	execvp((char*)(arg->com[0].c_str()), a);
 }
 
-void WindowManager::SwapMaster(const Argument *arg) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (!d->GetCur() || d->clients.size() <= 1) {
+void WindowManager::swapMaster(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (!d->getCur() || d->clients.size() <= 1) {
 		return;
 	}
-	auto _id1 = d->GetCur()->id;
+	auto _id1 = d->getCur()->id;
 	auto _id2 = 0;
 	
 	d->clients[_id1]->id = _id2;
 	d->clients[_id2]->id = _id1;
 
-	auto elem = d->clients[_id1];
-	d->clients[_id1] = d->clients[_id2];
-	d->clients[_id2] = elem;
+	auto elem = std::move(d->clients[_id1]);
+	d->clients[_id1] = std::move(d->clients[_id2]);
+	d->clients[_id2] = std::move(elem);
+
 	d->prevClientId = d->clients.size()-1;
 	d->curClientId = 0;
-	Focus(d->GetHead(), d, monitors[monitorId]);
+	focus(d->getHead(), d, monitors[monitorId].get());
 	
-	if (!d->GetCur()->isFloat && !d->GetCur()->isTrans) {
-		Tile(d, monitors[monitorId]);
+	if (!d->getCur()->isFloat && !d->getCur()->isTrans) {
+		tile(d, monitors[monitorId].get());
 	}
 }
 
-void WindowManager::SwitchMode(const Argument *Argument) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
+void WindowManager::switchMode(const Argument* Argument) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
 	if (d->mode != Argument->i) {
 		d->mode = Argument->i;
 	}
 	for (auto i = 0; i < d->clients.size(); i++) {
 		d->clients[i]->isHide = false;
 	}
-	if (d->mode != FLOAT) {
+	if (d->mode != FLOAT_MODE) {
 		for (auto i = 0; i < d->clients.size(); i++) {
 			d->clients[i]->isFloat = d->clients[i]->isFull = false;
 		}
 	}
 	if (d->clients.size() > 0) {
-		Tile(d, monitors[monitorId]);
-		Focus(d->GetCur() != nullptr ? d->GetCur() : d->GetHead(), d, monitors[monitorId]);
+		tile(d, monitors[monitorId].get());
+		focus(d->getCur() != nullptr ? d->getCur() : d->getHead(), d, monitors[monitorId].get());
 	}
-	DesktopInfo();
+	desktopInfo();
 }
 
-void WindowManager::Tile(Desktop *d, Monitor *m) {
-	if (d->clients.size() == 0) {
-		return;
-	}
-	(*this.*layout[d->clients.size() > 0 ? d->mode : MONOCLE])(m->x + (d->isBar ? config->PANEL_HEIGHT_VERTICAL_LEFT : 0), 
-		                                                       m->y + (config->SHOW_PANEL && d->isBar ? config->PANEL_HEIGHT_HORIZONTAL_UP : 0),
-		                                                       m->w - (d->isBar ? (config->PANEL_HEIGHT_VERTICAL_LEFT+config->PANEL_HEIGHT_VERTICAL_RIGHT) : 0),
-		                                                       m->h - (d->isBar ? (config->PANEL_HEIGHT_HORIZONTAL_UP+config->PANEL_HEIGHT_HORIZONTAL_DOWN) : 0), d);
-}
-
-void WindowManager::TogglePanel(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
+void WindowManager::togglePanel(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
 	m->desktops[m->desktopCurId]->isBar = !m->desktops[m->desktopCurId]->isBar;
-	Tile(m->desktops[m->desktopCurId], m);
+	tile(m->desktops[m->desktopCurId].get(), m);
 }
 
 void WindowManager::unmapNotify(XEvent *e) {
 	Monitor *m = nullptr; 
 	Desktop *d = nullptr; 
 	Client *c = nullptr;
-	if (WinToClient(e->xunmap.window, &c, &d, &m)) {
+	if (winToClient(e->xunmap.window, &c, &d, &m)) {
 		if (c->isUnmap) {
 			return;
 		}
 		if (config->SHOW_DECORATE && c->isDecorated) {
-			DecorationsDestroy(c);
+			c->decorationsDestroy(display);
 		}
-		RemoveClient(c, d, m);
+		removeClient(c, d, m);
 	}
 }
 
-bool WindowManager::WinToClient(Window w, Client **c, Desktop **d, Monitor **m, bool isTitle) {
+bool WindowManager::winToClient(Window w, Client **c, Desktop **d, Monitor **m, bool isTitle) {
 	for (int cm = 0; cm < monitorCount; cm++) {
-		*m = monitors[cm];
+		*m = monitors[cm].get();
 		for (int cd = 0; cd < config->DESKTOPS; cd++) {
-			*d = (*m)->desktops[cd];
+			*d = (*m)->desktops[cd].get();
 			for (int i = 0; i < (*d)->clients.size(); i++) {
-				*c = (*d)->clients[i];
+				*c = (*d)->clients[i].get();
 				if (!isTitle && *c && (*c)->win == w) {
 					return (*c != nullptr);
 				} else if (isTitle && *c && (*c)->decorate == w) {
@@ -1668,89 +1474,73 @@ WindowManager::~WindowManager() {
 	XCloseDisplay(display);
 }
 
-void WindowManager::PrevWin(const Argument *arg) {
-	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId];
-	if (d->GetCur() && d->clients.size() > 1) {
-		auto c = (d->GetCur()->id - 1 >= 0) ? d->clients[d->GetCur()->id - 1] : 
-			d->clients[d->clients.size()-1];
+void WindowManager::prevWin(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	if (d->getCur() && d->clients.size() > 1) {
+		auto c = (d->getCur()->id - 1 >= 0) ? d->clients[d->getCur()->id - 1].get() : 
+			d->clients[d->clients.size()-1].get();
 		if (c->isHide) {
-			HideClient(c, monitors[monitorId]);
+			hideClient(c, monitors[monitorId].get());
 		}
-		Focus(c, d, monitors[monitorId]);
+		focus(c, d, monitors[monitorId].get());
 	}
 }
 
-void WindowManager::Quit(const Argument *arg) {
+void WindowManager::quit(const Argument *arg) {
 	retval = arg->i;
 	isRunning = false;
 }
 
-void WindowManager::RemoveClient(Client *c, Desktop *d, Monitor *m) {
+void WindowManager::removeClient(Client *c, Desktop *d, Monitor *m) {
 	if (!c || c->id >= d->clients.size()) {
 		return;
 	}
-	auto _cur = d->GetCur();
-	auto id = c->id;
-	d->clients.erase(d->clients.begin()+c->id);
-	if(d->clients.size() <= 0) {
-		d->curClientId  = d->prevClientId = -1;
-	} else {
-		d->curClientId = id-1 >= 0 ? id-1 : 0;
-		d->curClientId = d->curClientId >= d->clients.size() ? 0 : d->prevClientId;
-		d->prevClientId = d->curClientId-1 >= 0 ? d->curClientId-1 : 0;
-		if (d->prevClientId == d->curClientId) {
-			d->prevClientId = d->clients.size()-1;
-		}
+
+	bool isSame = d->getCur() == c;
+
+	d->removeCurClient(c);
+	if (isSame || (d->getHead() && d->clients.size() > 1)) {
+		focus(d->getHead(), d, m);
 	}
-	for(auto i = 0; i < d->clients.size(); ++i) {
-		d->clients[i]->id = i;
-	}
-	if (c == _cur || (d->GetHead() && d->clients.size() > 1)) {
-		Focus(d->GetHead(), d, m);
-	}
-	//if (!(c->isFloat || c->isTrans) || (d->GetHead() && d->clients.size() > 1)) {
-	Tile(d, m);
-	//}
-	delete c;
-	DesktopInfo();
+	tile(d, m);
+	desktopInfo();
 }
 
-
-void WindowManager::ResizeMaster(const Argument *Argument) {
-	Monitor *m = monitors[monitorId];
-	Desktop *d = m->desktops[m->desktopCurId];
+void WindowManager::resizeMaster(const Argument *Argument) {
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
 	int msz = (d->mode == H_STACK_UP || d->mode == H_STACK_DOWN ? m->h : m->w) * config->MASTER_SIZE + (d->masterSize += Argument->i);
 	if (msz >= config->MINWSZ && (d->mode == H_STACK_UP || d->mode == H_STACK_DOWN ? m->h : m->w) - msz >= config->MINWSZ) {
-		Tile(d, m);
+		tile(d, m);
 	} else {
 		d->masterSize -= Argument->i;
 	}
 }
 
-void WindowManager::ResizeStack(const Argument *Argument) {
+void WindowManager::resizeStack(const Argument *Argument) {
 	monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId]->firstStackSize += Argument->i;
-	Tile(monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId], monitors[monitorId]);
+	tile(monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get(), monitors[monitorId].get());
 }
 
-void WindowManager::NextDesktop(const Argument *arg) {
+void WindowManager::nextDesktop(const Argument *arg) {
 	Argument _arg;
 	_arg.i = (config->DESKTOPS + monitors[monitorId]->desktopCurId + arg->i) % config->DESKTOPS;
-	ChangeDesktop(&_arg);
+	changeDesktop(&_arg);
 }
 
-void WindowManager::NextFilledDesktop(const Argument *arg) {
-	Monitor *m = monitors[monitorId];
+void WindowManager::nextFilledDesktop(const Argument *arg) {
+	Monitor *m = monitors[monitorId].get();
 	int n = arg->i;
-	while (n < config->DESKTOPS && !m->desktops[(config->DESKTOPS + m->desktopCurId + n) % config->DESKTOPS]->GetHead()) {
+	while (n < config->DESKTOPS && !m->desktops[(config->DESKTOPS + m->desktopCurId + n) % config->DESKTOPS]->getHead()) {
 		(n += arg->i);
 	}
 	Argument _arg;
 	_arg.i = (config->DESKTOPS + m->desktopCurId + n) % config->DESKTOPS;
-	ChangeDesktop(&_arg);
+	changeDesktop(&_arg);
 }
 
 
-void WindowManager::Run() {
+void WindowManager::run() {
 	XEvent ev;
 	while(isRunning && !XNextEvent(display, &ev)) {
 		if (events[ev.type]) {
@@ -1759,31 +1549,8 @@ void WindowManager::Run() {
 	}
 }
 
-void WindowManager::FullscreenMode(Client *c, Desktop *d, Monitor *m, bool fullscrn) {
-	if (fullscrn != c->isFull) {
-		XChangeProperty(display, c->win,
-			netatoms[NET_WM_STATE], XA_ATOM, 32, PropModeReplace, (unsigned char*)
-			((c->isFull = fullscrn) ? &netatoms[NET_FULLSCREEN]:0), fullscrn);
-		if (config->SHOW_DECORATE) {
-			XChangeProperty(display, c->decorate,
-				netatoms[NET_WM_STATE], XA_ATOM, 32, PropModeReplace, (unsigned char*)
-				((c->isFull = fullscrn) ? &netatoms[NET_FULLSCREEN]:0), fullscrn);
-		}
-	}
-	if (fullscrn) {
-		if (config->SHOW_DECORATE) {
-			XMoveResizeWindow(display, c->decorate, m->x, m->y, m->w, m->h);
-		}
-		XMoveResizeWindow(display, c->win, m->x, m->y, m->w, m->h);
-	} else {
-		Tile(d, m);
-	}
-	auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-	XSetWindowBorderWidth(display, win, (c->isFull || d->clients.size() <= 1 ? 0 : config->BORDER_WIDTH));
-}
-
 int WindowManager::WMDetected(Display* display, XErrorEvent* e) {
-	Logger::Err("Another WM already running");
+	LERR << "Another WM already running\n";
 	exit(-1);
 	return 0;
 }
@@ -1800,341 +1567,116 @@ int WindowManager::XError(Display* display, XErrorEvent* e) {
 		
 		return 0;
 	}
-	//exit(-1);
-	//Logger::Err(" request: %i, code %i", e->request_code, e->error_code);
-	//Logger::Log(" request: " +std::to_string(e->request_code)+ ", code " + std::to_string(e->error_code));
 }
 
-void WindowManager::StackMode(int x, int y, int w, int h, Desktop *d) {
-	Client *c = nullptr;
-	Client *t = nullptr;
-	int stackType = (int)d->mode;
-	int p = 0;
-	int z = (stackType == H_STACK_UP || stackType == H_STACK_DOWN ? w : h); //clientSize
-	int ma = (stackType == H_STACK_UP || stackType == H_STACK_DOWN ? h : w) * config->MASTER_SIZE + d->masterSize;
-	int nm = d->nm;
-
-	int stackSize = 0;
-	//get master
-	int cid = 0;
-	for (auto _c = d->clients.begin(); _c != d->clients.end(); _c++) {
-		if (!IsFloatOrFullscreen(*_c)) {
-			if (c) {
-				stackSize++; //stack size
-			} else {
-				c = *_c; //master win
-				cid = c->id;
-			}
-		}
+void WindowManager::reloadConfig(const Argument *arg) {
+	config->initDefault();
+	if (arg->com[0] != "") {
+		config->parse(arg->com[0]);
 	}
-
-	if (c && !stackSize && !c->isHide) {
-		auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-		if (!c->isHide) {
-		XMoveResizeWindow(display, win, x + config->USELESSGAP, y + config->USELESSGAP, 
-			w - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-			h - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-		if (config->SHOW_DECORATE && c->decorate) {
-			MoveResizeLocal(c->win, x + config->USELESSGAP, y + config->USELESSGAP, 
-				w - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-				h - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-		}
-		}
-	}
-	if (!c || !stackSize) {
-		return;
-	} else if (stackSize - nm <= 0) { 
-		nm = stackSize;
-	} else {
-		stackSize -= nm-1;
-		p = (z - d->firstStackSize)%stackSize + d->firstStackSize;
-		z = (z - d->firstStackSize)/stackSize; 
-	}
-	for (int i = 0; i < nm; i++) {
-	if (c->isHide) {
-		for (auto i = cid+1; i < d->clients.size(); i++) {
-			if (!IsFloatOrFullscreen(d->clients[i])) {
-				c = d->clients[i];
-				cid = c->id;
-				break;
-			}
-		}
-		continue;
-	}
-	auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-	if (stackType == H_STACK_DOWN) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x+config->USELESSGAP + i * (w-config->USELESSGAP)/nm, 
-				y+config->USELESSGAP, 
-				(w-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-				ma - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-		}
-		XMoveResizeWindow(display, win, x+config->USELESSGAP + i * (w-config->USELESSGAP)/nm, 
-			y+config->USELESSGAP, 
-			(w-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-			ma - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-	} else if (stackType == V_STACK_LEFT) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, (w-ma+(d->isBar && config->SHOW_PANEL ? config->PANEL_HEIGHT_VERTICAL_LEFT : 0))+config->USELESSGAP, 
-				y+config->USELESSGAP + i * (h-config->USELESSGAP)/nm, 
-				ma - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-				(h-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP);
-		}
-		XMoveResizeWindow(display, win, (w-ma+(d->isBar && config->SHOW_PANEL ? config->PANEL_HEIGHT_VERTICAL_LEFT : 0))+config->USELESSGAP, 
-			y+config->USELESSGAP + i * (h-config->USELESSGAP)/nm, 
-			ma - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-			(h-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP);
-	} else if (stackType == V_STACK_RIGHT) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x+config->USELESSGAP, 
-			y+config->USELESSGAP + i * (h-config->USELESSGAP)/nm, 
-			ma - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-			(h-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP);
-		}
-		XMoveResizeWindow(display, win, x+config->USELESSGAP, 
-			y+config->USELESSGAP + i * (h-config->USELESSGAP)/nm, 
-			ma - 2*(config->BORDER_WIDTH+config->USELESSGAP), 
-			(h-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP);
-	} else if (stackType == H_STACK_UP) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x+config->USELESSGAP + i * (w-config->USELESSGAP)/nm, 
-				(h-ma+(d->isBar && config->SHOW_PANEL ? config->PANEL_HEIGHT_HORIZONTAL_UP : 0))+config->USELESSGAP, 
-				(w-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-				ma - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-		}
-		XMoveResizeWindow(display, win, x+config->USELESSGAP + i * (w-config->USELESSGAP)/nm, 
-			(h-ma+(d->isBar && config->SHOW_PANEL ? config->PANEL_HEIGHT_HORIZONTAL_UP : 0))+config->USELESSGAP, 
-			(w-config->USELESSGAP)/nm - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-			ma - 2*(config->BORDER_WIDTH+config->USELESSGAP));
-	}
-	for (auto i = cid+1; i < d->clients.size(); i++) {
-		if (!IsFloatOrFullscreen(d->clients[i])) {
-			c = d->clients[i];
-			cid = c->id;
-			break;
-		}
-	}
-	}
-	/*
-	for (auto i = cid+1; i < d->clients.size(); i++) {
-		if (!IsFloatOrFullscreen(d->clients[i])) {
-			c = d->clients[i];
-			cid = c->id;
-			break;
-		}
-	}*/
-	
-	int cw = (stackType == V_STACK_LEFT || stackType == V_STACK_RIGHT ? w : h) - 2*config->BORDER_WIDTH - config->USELESSGAP - ma;
-	int ch = z - 2*config->BORDER_WIDTH - config->USELESSGAP;
-	auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-	
-	if (stackType == V_STACK_RIGHT) {
-		x += ma;
-		y += config->USELESSGAP;
-		if (!c->isHide) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x, y, cw, ch - config->USELESSGAP + p);
-		}
-		XMoveResizeWindow(display, win, x, y, cw, ch - config->USELESSGAP + p);
-		}
-	} else if (stackType == V_STACK_LEFT) {
-		y += config->USELESSGAP;
-		x += config->USELESSGAP;
-		if (!c->isHide) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x, y, cw, ch - config->USELESSGAP + p);
-		}
-		XMoveResizeWindow(display, win, x, y, cw, ch - config->USELESSGAP + p);
-		}
-	} else if (stackType == H_STACK_UP) {
-		x += config->USELESSGAP;
-		y += config->USELESSGAP;
-		if (!c->isHide) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x, y, ch  - config->USELESSGAP + p, cw);
-		}
-		XMoveResizeWindow(display, win, x, y, ch  - config->USELESSGAP + p, cw);
-		}
-	} else {
-		y += ma;
-		x += config->USELESSGAP;
-		if (!c->isHide) {
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x, y, ch - config->USELESSGAP + p, cw);
-		}
-		XMoveResizeWindow(display, win, x, y, ch - config->USELESSGAP + p, cw);
-		}
-	}
-	
-	stackType == V_STACK_LEFT || stackType == V_STACK_RIGHT ? (y += z+p - config->USELESSGAP) : (x += z+p - config->USELESSGAP);
-
-	for (auto i = cid+1; i < d->clients.size(); i++) {
-		if (IsFloatOrFullscreen(d->clients[i])) {
-			continue;
-		}
-		auto _win = config->SHOW_DECORATE ? (d->clients[i])->decorate : (d->clients[i])->win;
-		if (stackType == V_STACK_LEFT || stackType == V_STACK_RIGHT) { 
-			if (!d->clients[i]->isHide){
-			if (config->SHOW_DECORATE && (d->clients[i])->isDecorated) {
-				MoveResizeLocal((d->clients[i])->win, x, y, cw, ch);
-			}
-			XMoveResizeWindow(display, _win, x, y, cw, ch);
-			}
-			y += z;
-		} else {
-			if (!d->clients[i]->isHide){
-			if (config->SHOW_DECORATE && (d->clients[i])->isDecorated) {
-				MoveResizeLocal((d->clients[i])->win, x, y, ch, cw);
-			}
-			XMoveResizeWindow(display, _win, x, y, ch, cw);
-			}
-			x += z;
-		}
-	}
+	Argument dummyArg(0);
+	restartMonitors(&dummyArg);
 }
 
-void WindowManager::FibonacciMode(int x, int y, int w, int h, Desktop *d) {
-	int j = -1;
-	int cw = w - config->BORDER_WIDTH - config->USELESSGAP*2;
-	int ch = h - config->BORDER_WIDTH - config->USELESSGAP*2;
+void WindowManager::hideClient(Client *c, Monitor *m) {
+	if (c == nullptr) {
+		return;
+	}
+	auto win = config->SHOW_DECORATE && c->isDecorated ? (c)->decorate : (c)->win;
 	
-	Client *n = nullptr;
-	Client *c = nullptr;
-
-	auto winCount = 0;
-	for (auto i = 0; i < d->clients.size(); ++i) {
-		if (!IsFloatOrFullscreen(d->clients[i])) {
-			winCount++;
-		}
-	}
-	x += config->USELESSGAP;
-	y += config->USELESSGAP;
-	for (auto i = 0; i < d->clients.size(); ++i) {
-		c = d->clients[i];
-		if (IsFloatOrFullscreen(c)) {
-			continue;
-		} else {
-			j++;
-		}
-		for (auto ii = i+1; ii < d->clients.size(); ++ii) {
-			n = d->clients[ii];
-			if (!IsFloatOrFullscreen(n)) {
-				break;
-			}
-		}
-		if (n && winCount!=1) (j&1) ? ((ch /= 2)) : ((cw /= 2));
-		if (j) (j&1) ? (x += cw + config->USELESSGAP) : (y += ch + config->USELESSGAP);
-		auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-		if (!c->isHide){
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			MoveResizeLocal(c->win, x, y, cw - config->BORDER_WIDTH, ch - config->BORDER_WIDTH);
-		}
-		XMoveResizeWindow(display, win, x, y, cw - config->BORDER_WIDTH, ch - config->BORDER_WIDTH);
-		}
-		if (n && winCount!=1)
-		if (j&1) {
-			ch-=config->USELESSGAP;
-			y += config->USELESSGAP;
-		} else {
-			cw-=config->USELESSGAP;
-			x += config->USELESSGAP;
-		}
-		winCount--;
-	}
-}
-
-void WindowManager::DoubleStackVerticalMode(int x, int y, int w, int h, Desktop *d) {
-	int cw = w - config->BORDER_WIDTH - config->USELESSGAP*2;
-	int ch = h - config->BORDER_WIDTH - config->USELESSGAP*2;
-	std::vector<Client*> avalibleClients;
-	for (auto i = 0; i < d->clients.size(); ++i) {
-		if (!IsFloatOrFullscreen(d->clients[i])) {
-			avalibleClients.push_back(d->clients[i]);
-		}
-	}
-	if (!avalibleClients.size()) {
-		return;
-	}
-	x += config->USELESSGAP;
-	y += config->USELESSGAP;
-	if (avalibleClients.size() == 1) {
-		auto win = config->SHOW_DECORATE ? avalibleClients[0]->decorate : avalibleClients[0]->win;
-		if (config->SHOW_DECORATE && avalibleClients[0]->isDecorated) {
-			MoveResizeLocal(avalibleClients[0]->win, x, y, cw - config->BORDER_WIDTH, ch - config->USELESSGAP);
-		}
-		XMoveResizeWindow(display, win, x, y, cw - config->BORDER_WIDTH, ch - config->USELESSGAP);
-		return;
-	}
-	if (avalibleClients.size() == 2) {
-		auto win1 = config->SHOW_DECORATE ? avalibleClients[0]->decorate : avalibleClients[0]->win;
-		auto win2 = config->SHOW_DECORATE ? avalibleClients[1]->decorate : avalibleClients[1]->win;
-		if (config->SHOW_DECORATE && avalibleClients[0]->isDecorated) {
-			MoveResizeLocal(avalibleClients[0]->win, x, y, (cw - config->BORDER_WIDTH - config->USELESSGAP) / 2, (ch - config->USELESSGAP));
-		}
-		XMoveResizeWindow(display, win1, x, y, (cw - config->BORDER_WIDTH - config->USELESSGAP) / 2, (ch - config->USELESSGAP));
-
-		if (config->SHOW_DECORATE && avalibleClients[1]->isDecorated) {
-			MoveResizeLocal(avalibleClients[1]->win, x+(cw - config->BORDER_WIDTH) / 2 + config->USELESSGAP, 
-			y, 
-			(cw - config->BORDER_WIDTH - 2*config->USELESSGAP) / 2, (ch - config->USELESSGAP));
-		}
-		XMoveResizeWindow(display, win2, x+(cw - config->BORDER_WIDTH) / 2 + config->USELESSGAP, 
-			y, 
-			(cw - config->BORDER_WIDTH - 2*config->USELESSGAP) / 2, (ch - config->USELESSGAP));
-		return;
-	}
-	int masterSize = d->masterSize + cw / 3 - 2 * config->BORDER_WIDTH;
-	auto clientsSize = avalibleClients.size() - 1;
-	int clientsRSize = 0;
-	int clientsLSize = 0;
-	if (clientsSize % 2 == 0) {
-		clientsRSize = clientsLSize = clientsSize / 2;
-	} else {
-		clientsRSize = clientsSize / 2 + 1;
-		clientsLSize = clientsSize / 2;
-	}
-	auto rStackCount = 0;
-	auto lStackCount = 0;
-	Logger::isErr=true;
-	for (auto i = 0; i < avalibleClients.size(); ++i) {
-		auto win = config->SHOW_DECORATE ? avalibleClients[i]->decorate : avalibleClients[i]->win;
-		if (i == 0) {
-
-			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
-				MoveResizeLocal(avalibleClients[i]->win, (cw - masterSize) / 2 + 2*config->USELESSGAP, y, 
-					masterSize - config->USELESSGAP*2, (ch - config->BORDER_WIDTH));
-			}
-			XMoveResizeWindow(display, win, (cw - masterSize) / 2  + 2*config->USELESSGAP, y, 
-				masterSize - config->USELESSGAP*2, (ch - config->BORDER_WIDTH));
-			
-			continue;
-		}
-
-		auto leftOrRight = static_cast<bool>(i % 2);
+	XWindowAttributes wa;
+	if (XGetWindowAttributes(display, win, &wa)) {
 		
-		if (leftOrRight) { // right
-			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
-				MoveResizeLocal(avalibleClients[i]->win, masterSize + ((cw - masterSize) / 2) + config->USELESSGAP, 
-					y+ (((ch - config->BORDER_WIDTH) / clientsRSize)) * rStackCount, 
-					((cw - masterSize) / 2) - config->BORDER_WIDTH, ((ch - config->BORDER_WIDTH*clientsRSize - config->USELESSGAP*clientsRSize) / clientsRSize) - config->BORDER_WIDTH);
+		if (c->isHide) {
+			XMoveResizeWindow(display, win, c->hideX, c->hideY, wa.width, wa.height);
+			if (c->isDecorated) {
+				c->moveResizeLocal(c->hideX, c->hideY, wa.width, wa.height, *config, display);
 			}
-			XMoveResizeWindow(display, win, masterSize + ((cw - masterSize) / 2) + config->USELESSGAP, 
-				y+ (((ch - config->BORDER_WIDTH) / clientsRSize)) * rStackCount, 
-				((cw - masterSize) / 2) - config->BORDER_WIDTH, ((ch - config->BORDER_WIDTH*clientsRSize - config->USELESSGAP*clientsRSize) / clientsRSize) - config->BORDER_WIDTH);
-			rStackCount++;
-		} else { // left
-			if (config->SHOW_DECORATE && avalibleClients[i]->isDecorated) {
-				MoveResizeLocal(avalibleClients[i]->win, x, 
-					y + (((ch - config->BORDER_WIDTH) / clientsLSize)) * lStackCount, 
-					((cw - masterSize) / 2) - config->BORDER_WIDTH, 
-					((ch - config->BORDER_WIDTH*clientsLSize - config->USELESSGAP*clientsLSize) / clientsLSize) - config->BORDER_WIDTH);
+		} else {
+			c->hideX = wa.x;
+			c->hideY = wa.y;
+			XMoveResizeWindow(display, win, - 2 * m->w, 0, wa.width, wa.height);
+			if (c->isDecorated) {
+				c->moveResizeLocal(- 2 * m->w, 0, wa.width, wa.height, *config, display);
 			}
-			XMoveResizeWindow(display, win, x, 
-				y + (((ch - config->BORDER_WIDTH) / clientsLSize)) * lStackCount, 
-				((cw - masterSize) / 2) - config->BORDER_WIDTH, 
-				((ch - config->BORDER_WIDTH*clientsLSize - config->USELESSGAP*clientsLSize) / clientsLSize) - config->BORDER_WIDTH);
-			lStackCount++;
 		}
-	
+		c->isHide = !c->isHide;
+		
 	}
+}
+
+void WindowManager::hideCurClient(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	Client *c = d->getCur();
+	if (c == nullptr) {
+		return;
+	}
+	hideClient(c, monitors[monitorId].get());
+}
+
+void WindowManager::hideAllClientOnDescktop(const Argument *arg) {
+	Desktop *d = monitors[monitorId]->desktops[monitors[monitorId]->desktopCurId].get();
+	bool hide = true;
+	for (auto& _c : d->clients) {
+		if (!_c->isHide) {
+			hide = false;
+			break;
+		}
+	}
+	if (hide) {
+		d->isHide = false;
+		for (auto& _c : d->clients) {
+			if (_c->isHide) {
+				hideClient(_c.get(), monitors[monitorId].get());
+			}
+		}
+	} else {
+		d->isHide = true;
+		for (auto& _c : d->clients) {
+			if (!_c->isHide) {
+				hideClient(_c.get(), monitors[monitorId].get());
+			}
+		}
+	}
+}
+
+void WindowManager::changeDecorateBorder(const Argument *arg) {
+	config->DECORATE_BORDER_WIDTH += arg->i;
+	config->DECORATE_BORDER_WIDTH  = config->DECORATE_BORDER_WIDTH < 0 ? 0 : config->DECORATE_BORDER_WIDTH;
+	config->DECORATE_BORDER_WIDTH  = config->DECORATE_BORDER_WIDTH > 100 ? 1000 : config->DECORATE_BORDER_WIDTH;
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	Client  *c = d->getCur();
+	tile(d, m);
+	focus(c, d, m);
+}
+
+void WindowManager::changeBorder(const Argument *arg) {
+	config->BORDER_WIDTH += arg->i;
+	config->BORDER_WIDTH  = config->BORDER_WIDTH < 0 ? 0 : config->BORDER_WIDTH;
+	config->BORDER_WIDTH  = config->BORDER_WIDTH > 100 ? 1000 : config->BORDER_WIDTH;
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	Client  *c = d->getCur();
+	tile(d, m);
+	focus(c, d, m);
+}
+
+void WindowManager::changeGap(const Argument *arg) {
+	config->USELESSGAP += arg->i;
+	config->USELESSGAP  = config->USELESSGAP < 0 ? 0 : config->USELESSGAP;
+	config->USELESSGAP  = config->USELESSGAP > 100 ? 1000 : config->USELESSGAP;
+	Monitor *m = monitors[monitorId].get();
+	Desktop *d = m->desktops[m->desktopCurId].get();
+	Client  *c = d->getCur();
+	tile(d, m);
+	focus(c, d, m);
+}
+
+void WindowManager::addMaster(const Argument *arg) {
+	Monitor *m =  monitors[monitorId].get();
+	Desktop *d = m->desktops[monitors[monitorId]->desktopCurId].get();
+	d->nm += arg->i;
+	d->nm = d->nm <= 0 ? config->NMASTER : d->nm;
+	tile(d, m);
 }

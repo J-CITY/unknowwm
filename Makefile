@@ -11,32 +11,32 @@ XINERAMALIB = -lXrandr
 INCS = -I. -I/usr/include ${X11INC}
 LIBS = -L/usr/lib -lc ${X11LIB} ${XINERAMALIB}
 
-CFLAGS   = -std=c++14 -pedantic -Wall -Wextra ${INCS}"
+CFLAGS   = -std=c++17 -pedantic -Wall -Wextra ${INCS}"
 LDFLAGS  = ${LIBS}
 
 GCC 	 = g++
 EXEC = ${WMNAME}
 
-SRC = ${WMNAME}.cpp main.cpp
+SRC = ${WMNAME}.cpp utils.cpp logger.cpp tiling.cpp client.cpp desktop.cpp main.cpp
 OBJ = ${SRC:.c=.o}
 
 all: CFLAGS += -Os
-all: LDFLAGS += -s
+all: LDFLAGS += -g
 all: options ${WMNAME}
 
-debug: CFLAGS += -O0 -g
+debug: CFLAGS += -O0
 debug: options ${WMNAME}
 
 .c.o:
 	@echo GCC $<
 	@${GCC} -c ${CFLAGS} $<
 
-${OBJ}: config.h logger.h wm.h desktop.h monitor.h  client.h toml.h
+${OBJ}: config.h logger.h wm.h monitor.h desktop.h client.h toml.h
 
 
 ${WMNAME}: ${OBJ}
 	@echo CC -o $@
-	@${GCC} -o $@ ${OBJ} ${LDFLAGS}
+	@${GCC} -o $@ ${OBJ} ${LDFLAGS} -g
 
 install: all
 	@echo installing executable file to ${DESTDIR}${PREFIX}/bin

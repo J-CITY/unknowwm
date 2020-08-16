@@ -1,18 +1,24 @@
+#pragma once
+
 #include <vector>
+#include <memory>
+
 #include "desktop.h"
 
+
+namespace UW {
 struct Monitor {
-	int desktopsCount = 0;
 	Monitor(int desktopsCount): desktopsCount(desktopsCount) {
 		desktops.resize(desktopsCount);
 	}
-	int x, y, h, w, desktopCurId = 0, desktopPrevId = 0;
-	std::vector<Desktop*> desktops;
-
 	~Monitor() {
-		for (auto it = desktops.begin() ; it != desktops.end(); ++it) {
-			delete (*it);
-		}
 		desktops.clear();
 	}
+
+	int desktopsCount = 0;
+	int x, y, h, w, desktopCurId = 0, desktopPrevId = 0;
+	std::vector<std::unique_ptr<Desktop>> desktops;
+
 };
+}
+

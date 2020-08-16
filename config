@@ -1,4 +1,5 @@
 [main]
+	SEND_STATUS_SCRIPT            = "python /home/daniil/Documents/unknowwm/scripts/infoSender.py" #wm can send status info by script
 	PANEL_HEIGHT_HORIZONTAL_UP    = 22
 	PANEL_HEIGHT_HORIZONTAL_DOWN  = 0
 	PANEL_HEIGHT_VERTICAL_LEFT    = 0
@@ -18,20 +19,20 @@
 	USE_TITLE_BUTTON_ACTIONS = true
 	MASTER_SIZE           = 0.52
 	SHOW_PANEL            = true           #Show bar panel
-	DEFAULT_MODE          = "V_STACK_LEFT" #Default layout for desktop V_STACK_RIGHT, H_STACK_UP, H_STACK_DOWN, MONOCLE, GRID, FLOAT, FIBONACCI, MODES
+	DEFAULT_MODE          = "FIBONACCI" #Default layout for desktop V_STACK_RIGHT, H_STACK_UP, H_STACK_DOWN, MONOCLE, GRID, FLOAT_MODE, FIBONACCI, MODES
 	ATTACH_ASIDE          = true           #False means new window is master
 	FOLLOW_WINDOW         = false          #follow the window when moved to a different desktop
 	FOLLOW_MONITOR        = false          #follow the window when moved to a different monitor
 	FOLLOW_MOUSE          = false          #focus the window the mouse just entered
 	CLICK_TO_FOCUS        = true           #focus an unfocused window when clicked
 	FOCUS_BUTTON          = "LEFT"         #LEFT/RIGHT/MIDDLE mouse button to be used along with CLICK_TO_FOCUS
-	FOCUS_COLOR           = "#D0785D"
-	UNFOCUS_COLOR         = "#4B3B51"
-	INFOCUS_COLOR         = "#4B3B51"
-	DECORATE_FOCUS_COLOR  = "#4B3B51"
-	DECORATE_UNFOCUS_COLOR= "#4B3B51"
-	DECORATE_INFOCUS_COLOR= "#4B3B51"
-	TITLE_TEXT_COLOR      = "#ffffff"
+	FOCUS_COLOR           = "#b70b41"
+	UNFOCUS_COLOR         = "#260b59"
+	INFOCUS_COLOR         = "#260b59"
+	DECORATE_FOCUS_COLOR  = "#260b59"
+	DECORATE_UNFOCUS_COLOR= "#260b59"
+	DECORATE_INFOCUS_COLOR= "#260b59"
+	TITLE_TEXT_COLOR      = "#e90cb2"
 
 	TITLE_DX              = 5
 	TITLE_DY              = 14
@@ -43,15 +44,18 @@
 	AUTOFLOATING                  = false
 	NMASTER                       = 1
 
-	PIPE_WM_INFO = "/home/daniil/wminfo"
-	PIPE_DOCK_INFO = "/home/daniil/dockinfo"
+	INIT_LAYOUT = ["DOUBLE_STACK_VERTICAL", "V_STACK_RIGHT", "GRID", "-1", "-1"]
+
+	LAYOUT_FOR_EACH_DESKTOP = [
+		["DOUBLE_STACK_VERTICAL", "H_STACK_UP", "FIBONACCI"],
+		[],
+		["GRID"]
+	]
 
 #[[autostart]]
-#	cmd = "/home/daniil/unknowwm/autorandr.sh"
+#	cmd = "/home/daniil/Documents/unknowwm/scripts/autorandr.sh"
 [[autostart]]
-	cmd = "feh --bg-scale /home/daniil/unknowwm/1.jpg"
-
-
+	cmd = "feh --bg-scale /home/daniil/Documents/unknowwm/assets/2.jpg"
 
 
 # mask ALT, CTRL, MOD1, MOD4, SHIFT
@@ -70,7 +74,7 @@
 [[rules]]
 	class = "Thunar"
 	monitor = 0
-	desktop = 3
+	desktop = 0
 	isfollow = true
 	isfloating = true
 
@@ -110,7 +114,7 @@
 	moveresize = [0,  0,   -25,   0]
 
 [[cmd_run]]
-	mask = "MOD1|SHIFT"
+	mask = "SHIFT"
 	key = "KEY_RETURN"
 	cmd = "xfce4-terminal"
 

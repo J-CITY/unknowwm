@@ -1,43 +1,38 @@
+#pragma once
+
 #include <vector>
 #include "client.h"
 
+namespace UW {
+class Config;
+
 struct Desktop {
-	int mode, masterSize=0, firstStackSize=0, nm=0;
+	int mode=0, masterSize=0, firstStackSize=0, nm=0;
 	int layoutId = 0;
 	bool isHide = false;
-	//Clients *head, *cur, *prev;
 
-	std::vector<Client*> clients;
+	std::vector<std::unique_ptr<Client>> clients;
 	int curClientId = -1;
 	int prevClientId = -1;
 	
 	bool isBar;
 
+	Desktop() = default;
+
 	~Desktop() {
-		for (auto it = clients.begin() ; it != clients.end(); ++it) {
-			delete (*it);
-		}
 		clients.clear();
 	}
 
-	Client *GetCur() {
-		if (clients.size() == 0 || curClientId < 0 || curClientId >= clients.size()) {
-			return nullptr;
-		}
-		return clients[curClientId];
-	}
+	Client *getCur();
+	Client *getHead();
+	Client *getPrev();
+	Client* addClient(std::unique_ptr<Client> c, Config& config);
+	void mapAll(UW::Config& config, Display* display);
+	void map(Client* c, UW::Config& config, Display* display);
+	void unmapAll(UW::Config& config, Display* display);
+	void unmap(Client* c, UW::Config& config, Display* display);
+	void removeCurClient(Client* c);
 
-	Client *GetHead() {
-		if (clients.size() == 0) {
-			return nullptr;
-		}
-		return clients[0];
-	}
-
-	Client *GetPrev() {
-		if (clients.size() == 0 || prevClientId < 0 || prevClientId >= clients.size()) {
-			return nullptr;
-		}
-		return clients[prevClientId];
-	}
 };
+}
+
