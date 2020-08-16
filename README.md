@@ -90,7 +90,7 @@ Also in `/client` folder - simple client for send events to WM.
 
 ## Also
 
-Unknown Dock is a simple status bar for [UnknownWM](https://github.com/J-CITY/unknowdock).
+Unknow Dock is a simple status bar for [UnknowDock](https://github.com/J-CITY/unknowdock).
 
 # Thanks
 
