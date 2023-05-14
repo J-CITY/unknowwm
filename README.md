@@ -70,7 +70,7 @@ Also in `/client` folder - simple client for send events to WM.
 * Rules for special apps
 * Actions /close/hide/fullscreen on title press
 * Customization config with TOML
-* Send WM status by script (Script set no config file)
+* Send WM status by script (Script set on config file)
 
 ## Support tiling modes:
 
