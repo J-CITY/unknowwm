@@ -195,6 +195,25 @@ private:
 		{ACTION_RESTART, &WindowManager::restart},
 		{ACTION_RESTART_MONITORS, &WindowManager::restartMonitors},
 	};
+	
+	struct MoveEvent {
+		int x = 0;
+		int y = 0;
+		int curx = 0;
+		int cury = 0;
+		Client* c;
+		float speed = 1.0f;
+	};
+	std::unordered_map<Window, MoveEvent> moveEvents;
+	struct ResizeEvent {
+		int w = 0;
+		int h = 0;
+		int curw = 0;
+		int curh = 0;
+		Client* c;
+		float speed = 1.0f;
+	};
+	std::unordered_map<Window, ResizeEvent> resizeEvents;
 };
 };
 

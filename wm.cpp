@@ -7,7 +7,7 @@ UNKNOWN WM
 #include <unistd.h>
 #include <thread>
 #include <iterator>
-
+#include <chrono>
 #include "wm.h"
 
 using namespace UW;
@@ -848,11 +848,18 @@ void WindowManager::mapRequest(XEvent *e) {
 	c->isTrans = XGetTransientForHint(display, c->win, &w);
 	if ((c->isFloat = (floating || d->mode == FLOAT_MODE)) && !c->isTrans) {
 		auto win = config->SHOW_DECORATE ? c->decorate : c->win;
-		XMoveWindow(display, win, m->x + (m->w - wa.width)/2, m->y + (m->h - wa.height)/2);
-
-		if (config->SHOW_DECORATE && c->isDecorated) {
-			c->moveLocal(m->x + (m->w - wa.width)/2, 
-				m->y + (m->h - wa.height)/2, *config, display);
+		if (config->useAnims) {
+			moveEvents[win] = MoveEvent{m->x + (m->w - wa.width)/2, m->y + (m->h - wa.height)/2,
+						wa.x, wa.y,
+						c
+						};
+		}
+		else {
+			XMoveWindow(display, win, m->x + (m->w - wa.width)/2, m->y + (m->h - wa.height)/2);
+			if (config->SHOW_DECORATE && c->isDecorated) {
+				c->moveLocal(m->x + (m->w - wa.width)/2, 
+					m->y + (m->h - wa.height)/2, *config, display);
+			}
 		}
 	}
 	int i;
@@ -1029,13 +1036,22 @@ void WindowManager::toggleFloatClient(const Argument *arg) {
 	focus(d->getCur(), d, m);
 	if (d->getCur()->isFloat) {
 		XRaiseWindow(display, win);
-		//m->w/4, m->h/4, m->w/2, m->h/2
-		XMoveResizeWindow(display, win, (m->w-wa.width)/2, (m->h-wa.height)/2,
+
+		if (config->useAnims) {
+			moveEvents[d->getCur()->win] = MoveEvent{(m->w-wa.width)/2, (m->h-wa.height)/2,
+						wa.x, wa.y,
+						d->getCur()
+						};
+		}
+		else {
+			//m->w/4, m->h/4, m->w/2, m->h/2
+			XMoveResizeWindow(display, win, (m->w-wa.width)/2, (m->h-wa.height)/2,
 			              wa.width, wa.height);
-		if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
-			XRaiseWindow(display, d->getCur()->win);
-			d->getCur()->moveResizeLocal((m->w-wa.width)/2, (m->h-wa.height)/2,
+			if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+				XRaiseWindow(display, d->getCur()->win);
+					d->getCur()->moveResizeLocal((m->w-wa.width)/2, (m->h-wa.height)/2,
 			                wa.width, wa.height, *config, display);
+			}
 		}
 	}
 }
@@ -1066,13 +1082,25 @@ void WindowManager::moveResize(const Argument *Argument) {
 	}
 
 	auto win = config->SHOW_DECORATE ? d->getCur()->decorate : d->getCur()->win;
-	XRaiseWindow(display, win);
-	XMoveResizeWindow(display, win, wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
+	if (config->useAnims) {
+			moveEvents[d->getCur()->win] = MoveEvent{wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
+						wa.x, wa.y,
+						d->getCur()
+						};
+
+			resizeEvents[d->getCur()->win] = ResizeEvent{wa.width + Argument->intArr[2], wa.height + Argument->intArr[3],
+						wa.width, wa.height,
+						d->getCur()
+						};	}
+	else {
+		XRaiseWindow(display, win);
+		XMoveResizeWindow(display, win, wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
 		wa.width + Argument->intArr[2], wa.height + Argument->intArr[3]);
-	if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
-		XRaiseWindow(display, d->getCur()->win);
-		d->getCur()->moveResizeLocal(wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
-			wa.width + Argument->intArr[2], wa.height + Argument->intArr[3], *config, display);
+		if (config->SHOW_DECORATE && d->getCur()->isDecorated) {
+			XRaiseWindow(display, d->getCur()->win);
+			d->getCur()->moveResizeLocal(wa.x + Argument->intArr[0], wa.y + Argument->intArr[1],
+				wa.width + Argument->intArr[2], wa.height + Argument->intArr[3], *config, display);
+		}
 	}
 }
 
@@ -1497,7 +1525,8 @@ void WindowManager::removeClient(Client *c, Desktop *d, Monitor *m) {
 	}
 
 	bool isSame = d->getCur() == c;
-
+	moveEvents.erase(c->win);
+	resizeEvents.erase(c->win);
 	d->removeCurClient(c);
 	if (isSame || (d->getHead() && d->clients.size() > 1)) {
 		focus(d->getHead(), d, m);
@@ -1539,13 +1568,116 @@ void WindowManager::nextFilledDesktop(const Argument *arg) {
 	changeDesktop(&_arg);
 }
 
+auto start = std::chrono::system_clock::now();
+auto end = std::chrono::system_clock::now();
 
 void WindowManager::run() {
 	XEvent ev;
-	while(isRunning && !XNextEvent(display, &ev)) {
+	while(isRunning && (!XNextEvent(display, &ev) || !moveEvents.empty() || !resizeEvents.empty())) {
 		if (events[ev.type]) {
 			(*this.*events[ev.type])(&ev);
 		}
+		
+		end = std::chrono::system_clock::now();
+		auto dt = (end - start).count();
+		start = end;
+	
+		auto speed = 50.0f;//* dt;
+		std::vector<Window> remove;
+		for (auto& e : moveEvents) {
+			bool checkx = false;
+			bool checky = false;
+			if (e.second.curx < e.second.x) {
+				e.second.curx += speed;
+				if (e.second.curx > e.second.x) {
+					e.second.curx = e.second.x;
+				}
+			}
+			else if (e.second.curx > e.second.x) {
+				e.second.curx -= speed;
+				if (e.second.curx < e.second.x) {
+					e.second.curx = e.second.x;
+				}
+			}
+			else {
+				checkx = true;
+			}
+			if (e.second.cury < e.second.y) {
+				e.second.cury += speed;
+				if (e.second.cury > e.second.y) {
+					e.second.cury = e.second.y;
+				}
+			}
+			else if (e.second.cury > e.second.y) {
+				e.second.cury -= speed;
+				if (e.second.cury < e.second.y) {
+					e.second.cury = e.second.y;
+				}
+			}
+			else {
+				checky = true;
+			}
+			if (checkx && checky) remove.push_back(e.first);	
+
+			XWindowAttributes wa;
+			XGetWindowAttributes(display, e.second.c->isDecorated ? e.second.c->decorate : e.second.c->win, &wa);
+			XMoveWindow(display, e.second.c->isDecorated ? e.second.c->decorate : e.second.c->win, 
+				e.second.curx, e.second.cury);
+			if (e.second.c->isDecorated) {
+				e.second.c->moveResizeLocal(e.second.curx, e.second.cury, wa.width, wa.height, *config, display);
+			}
+		}
+		for (auto& e : remove) {
+			moveEvents.erase(e);
+		}
+		remove.clear();
+		for (auto& e : resizeEvents) {
+			bool checkx = false;
+			bool checky = false;
+			if (e.second.curw < e.second.w) {
+				e.second.curw += speed;
+				if (e.second.curw > e.second.w) {
+					e.second.curw = e.second.w;
+				}
+			}
+			else if (e.second.curw > e.second.w) {
+				e.second.curw -= speed;
+				if (e.second.curw < e.second.w) {
+					e.second.curw = e.second.w;
+				}
+			}
+			else {
+				checkx = true;
+			}
+			if (e.second.curh < e.second.h) {
+				e.second.curh += speed;
+				if (e.second.curh > e.second.h) {
+					e.second.curh = e.second.h;
+				}
+			}
+			else if (e.second.curh > e.second.h) {
+				e.second.curh -= speed;
+				if (e.second.curh < e.second.h) {
+					e.second.curh = e.second.h;
+				}
+			}
+			else {
+				checky = true;
+			}
+			if (checkx && checky) remove.push_back(e.first);
+			
+			XWindowAttributes wa;
+			XGetWindowAttributes(display, e.second.c->isDecorated ? e.second.c->decorate : e.second.c->win, &wa);
+			XResizeWindow(display, e.second.c->isDecorated ? e.second.c->decorate : e.second.c->win, 
+				e.second.curw, e.second.curh);
+			if (e.second.c->isDecorated) {
+				e.second.c->moveResizeLocal(wa.x, wa.y, e.second.curw, e.second.curh, *config, display);
+			}
+		}
+		for (auto& e : remove) {
+			resizeEvents.erase(e);
+		}
+		remove.clear();
 	}
 }
 
@@ -1588,16 +1720,30 @@ void WindowManager::hideClient(Client *c, Monitor *m) {
 	if (XGetWindowAttributes(display, win, &wa)) {
 		
 		if (c->isHide) {
-			XMoveResizeWindow(display, win, c->hideX, c->hideY, wa.width, wa.height);
-			if (c->isDecorated) {
-				c->moveResizeLocal(c->hideX, c->hideY, wa.width, wa.height, *config, display);
+			if (config->useAnims) {
+				moveEvents[(c)->win] = MoveEvent{c->hideX, c->hideY,
+						wa.x, wa.y,
+						c
+						};
+			} else {
+				XMoveResizeWindow(display, win, c->hideX, c->hideY, wa.width, wa.height);
+				if (c->isDecorated) {
+					c->moveResizeLocal(c->hideX, c->hideY, wa.width, wa.height, *config, display);
+				}
 			}
 		} else {
-			c->hideX = wa.x;
-			c->hideY = wa.y;
-			XMoveResizeWindow(display, win, - 2 * m->w, 0, wa.width, wa.height);
-			if (c->isDecorated) {
-				c->moveResizeLocal(- 2 * m->w, 0, wa.width, wa.height, *config, display);
+			if (config->useAnims) {
+				moveEvents[(c)->win] = MoveEvent{- 2 * m->w, 0,
+						wa.x, wa.y,
+						c
+						};
+			} else {
+				c->hideX = wa.x;
+				c->hideY = wa.y;
+				XMoveResizeWindow(display, win, - 2 * m->w, 0, wa.width, wa.height);
+				if (c->isDecorated) {
+					c->moveResizeLocal(- 2 * m->w, 0, wa.width, wa.height, *config, display);
+				}
 			}
 		}
 		c->isHide = !c->isHide;

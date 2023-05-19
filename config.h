@@ -101,6 +101,8 @@ public:
 	bool AUTOFLOATING                 = false;
 	int NMASTER                       = 1;
 
+	bool useAnims                     = true;
+
 	std::vector<int> initLayout;       //init layout for each desktop
 	std::vector<int> layouts          = {V_STACK_LEFT, V_STACK_RIGHT, H_STACK_UP, 
 		                                 H_STACK_DOWN, MONOCLE, GRID, FIBONACCI, FLOAT_MODE, DOUBLE_STACK_VERTICAL};
@@ -160,8 +162,8 @@ public:
 		//rules.push_back(AppRule( "Thunar",     0,       3,    true,   true));
 
 		keys.push_back(Key(MOD1,          XK_b,      "TogglePanel",            Argument{nullptr}));
-		keys.push_back(Key(MOD1|CONTROL,  XK_r,      "Quit",                   Argument{.i = 0}));
-		keys.push_back(Key(MOD1|CONTROL,  XK_q,      "Quit",                   Argument{.i = 1}));
+		keys.push_back(Key(MOD1|CONTROL,  XK_r,      "Quit",                   Argument{0}));
+		keys.push_back(Key(MOD1|CONTROL,  XK_q,      "Quit",                   Argument{1}));
 		std::vector<std::string> a;
 		a.push_back("xfce4-terminal");
 		//a.push_back(nullptr);
@@ -441,7 +443,7 @@ public:
 			auto action = t->get_as<std::string>("action").value_or("");
 			auto resAction = actionMap[action];
 
-			buttons.push_back(Button(resMask, resBtn, "MouseMotion", Argument{.i = resAction}));
+			buttons.push_back(Button(resMask, resBtn, "MouseMotion", Argument{static_cast<int>(resAction)}));
 		
 		}
 

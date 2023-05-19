@@ -17,7 +17,7 @@ void argParse(int argc, char** argv, std::string &configPath) {
 	}
 }
 
-std::string configPath = "/home/daniil/Documents/unknowwm/config";
+std::string configPath = "/home/d/unknowwm/config";
 
 int main(int argc, char** argv) {
 	argParse(argc, argv, configPath);

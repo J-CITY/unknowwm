@@ -1,5 +1,5 @@
 [main]
-	SEND_STATUS_SCRIPT            = "python /home/daniil/Documents/unknowwm/scripts/infoSender.py" #wm can send status info by script
+	#SEND_STATUS_SCRIPT            = "python /home/daniil/Documents/unknowwm/scripts/infoSender.py" #wm can send status info by script
 	PANEL_HEIGHT_HORIZONTAL_UP    = 22
 	PANEL_HEIGHT_HORIZONTAL_DOWN  = 0
 	PANEL_HEIGHT_VERTICAL_LEFT    = 0
@@ -44,7 +44,7 @@
 	AUTOFLOATING                  = false
 	NMASTER                       = 1
 
-	INIT_LAYOUT = ["DOUBLE_STACK_VERTICAL", "V_STACK_RIGHT", "GRID", "-1", "-1"]
+	INIT_LAYOUT = ["GRID", "DOUBLE_STACK_VERTICAL", "V_STACK_RIGHT", "-1", "-1"]
 
 	LAYOUT_FOR_EACH_DESKTOP = [
 		["DOUBLE_STACK_VERTICAL", "H_STACK_UP", "FIBONACCI"],
@@ -54,8 +54,8 @@
 
 #[[autostart]]
 #	cmd = "/home/daniil/Documents/unknowwm/scripts/autorandr.sh"
-[[autostart]]
-	cmd = "feh --bg-scale /home/daniil/Documents/unknowwm/assets/2.jpg"
+#[[autostart]]
+#	cmd = "feh --bg-scale /home/daniil/Documents/unknowwm/assets/2.jpg"
 
 
 # mask ALT, CTRL, MOD1, MOD4, SHIFT

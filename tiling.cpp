@@ -51,17 +51,32 @@ void WindowManager::gridMode(int x, int y, int w, int h, Desktop *d) {
 		}
 		auto win = config->SHOW_DECORATE ? c.get()->decorate : c.get()->win;
 		if (!c.get()->isHide){
-		XMoveResizeWindow(display, win, x + cn*cw + config->USELESSGAP, 
-			y + rn*ch/rows + config->USELESSGAP, 
-			cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-			ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP);
+			XWindowAttributes wa;
+			XGetWindowAttributes(display, win, &wa);
+			if (config->useAnims) {
+				moveEvents[c.get()->win] = MoveEvent{x + cn*cw + config->USELESSGAP, y + rn*ch/rows + config->USELESSGAP,
+						wa.x, wa.y,
+						c.get()
+						};
+
+				resizeEvents[c.get()->win] = ResizeEvent{cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
+						ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP,
+						wa.width, wa.height,
+						c.get()
+						};	}
+			else {
+				XMoveResizeWindow(display, win, x + cn*cw + config->USELESSGAP, 
+					y + rn*ch/rows + config->USELESSGAP, 
+					cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
+					ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP);
 		
-		if (config->SHOW_DECORATE && c.get()->isDecorated) {
-			c->moveResizeLocal(x + cn*cw + config->USELESSGAP, 
-				y + rn*ch/rows + config->USELESSGAP, 
-				cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
-				ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP, *config, display);
-		}
+				if (config->SHOW_DECORATE && c.get()->isDecorated) {
+					c->moveResizeLocal(x + cn*cw + config->USELESSGAP, 
+						y + rn*ch/rows + config->USELESSGAP, 
+						cw - 2*config->BORDER_WIDTH-config->USELESSGAP, 
+						ch/rows - 2*config->BORDER_WIDTH-config->USELESSGAP, *config, display);
+				}
+			}
 		}
 		if (++rn >= rows) {
 			rn = 0;
